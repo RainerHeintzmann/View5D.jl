@@ -3,7 +3,10 @@ using JavaCall
 #View5D_jar = joinpath(Pkg.dir(), "View5D", "View5D.jar")
 #JavaCall.addClassPath(View5D_jar)
 
-JavaCall.init(["-verbose:jni", "-verbose:gc","-Djava.class.path=$(joinpath(Pkg.dir(), "View5D\\AllClasses"))"])
+#JavaCall.init(["-verbose:jni", "-verbose:gc","-Djava.class.path=$(joinpath(Pkg.dir(), "View5D\\AllClasses"))"])
+JavaCall.init(["-Djava.class.path=$(joinpath(Pkg.dir(), "View5D\\AllClasses"))"])
+
+
 #JavaCall.init(["-verbose:jni", "-verbose:gc","-Djava.class.path=$(joinpath(Pkg.dir(), "JavaCall", "test"))"])
 #JavaCall.init(["-verbose:jni", "-verbose:gc","-Djava.class.path=$(joinpath(Pkg.dir(), "JavaCall", "test"))","-Djava.class.path=C:\\Users\\pi96doc\\Programs\\Fiji.app\\plugins\\View5D_-1.3.1-SNAPSHOT.jar"])
 #JavaCall.init(["-Xmx512M", "-verbose:jni", "-verbose:gc","-Djava.class.path=C:\\Users\\pi96doc\\Programs\\Fiji.app\\plugins\\View5D_-1.3.1-SNAPSHOT.jar"])
