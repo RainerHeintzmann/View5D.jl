@@ -1,3 +1,13 @@
+"""
+View images using Java viewer View5D
+
+```jldoctest
+julia> using View5D
+julia> view5d(rand(5,5,5,3,5)) # a viewer with 5D data should popp up
+```
+
+See [`View5D.view5d`](@ref) for details.
+"""
 module View5D
 export view5d, to_jtype
 
@@ -147,14 +157,14 @@ julia> v2 = view5d(img2);
 julia> v3 = view5d(img3);
 ```
 """
-
 function view5d(myArray :: AbstractArray, exitingViewer=nothing, gamma=nothing)
         if ! JavaCall.isloaded()
             # JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "View5D.jl","AllClasses"))"])
-            myPath = ["-Djava.class.path=$(joinpath(@__DIR__, "jars","View5D.jar"))"]
-            @show myPath
-            JavaCall.init(myPath)
+            #myPath = ["-Djava.class.path=$(joinpath(@__DIR__, "jars","View5D.jar"))"]
+            #@show myPath
+            #JavaCall.init(myPath)
             # JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "jars","view5d"))"])
+            JavaCall.init()
         end
         #V = @JavaCall.jimport view5d.View5D
         V = @jimport view5d.View5D
@@ -166,13 +176,13 @@ function view5d(myArray :: AbstractArray, exitingViewer=nothing, gamma=nothing)
         # listmethods(V,"Start5DViewer")
         if myDataType <: Complex
             jArr = Vector{jfloat}
-            myviewer=jcall(V, "Start5DViewerC", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myArray,1), size(myArray,2), size(myArray,3), size(myArray,4),size(myArray,5));
+            myviewer=jcall(V, "Start5DViewerC", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], ntuple( i->size(myArray,i), 5)... );
             if isnothing(gamma)
                 gamma=0.2
             end
         else
             jArr = Vector{myDataType}
-            myviewer=jcall(V, "Start5DViewer", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myJArr,1), size(myJArr,2), size(myJArr,3), size(myJArr,4),size(myJArr,5));
+            myviewer=jcall(V, "Start5DViewer", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], ntuple( i->size(myArray,i), 5)... );
         end
         # activeViewer[] = myviewer # store the active viewer
         if !isnothing(gamma)
@@ -180,6 +190,35 @@ function view5d(myArray :: AbstractArray, exitingViewer=nothing, gamma=nothing)
         end
         ProcessKeys("Ti12", myviewer)   # to initialize the zoom and trigger the display update
     return myviewer
+end
+
+"""
+    getJarsGlob()
+
+Get string to add all jars in the jars folder using JavaCall.addClassPath.
+"""
+function getJarsGlob()
+    # pathof(@__MODULE__) gets us the location of this file ... <packageRoot>/src/View5D.jar
+    # dirname( pathof(@__MODULE__) ) is <packageRoot>/src
+    # dirname( dirname( pathof(@__MODULE__) ) ) is <packageRoot>
+    packageRoot = dirname(dirname(pathof(@__MODULE__)))
+    # See JavaCall._addJarsToClassPath for implementation details
+    jars = joinpath(packageRoot,"jars","*.jar")
+    return jars
+end
+
+function __init__()
+    # Use addClassPath here but do not init so we can compose with other packages
+    jars = getJarsGlob()
+    JavaCall.addClassPath(jars)
+    """
+    To enable debug messages, use the following code:
+    ```julia
+    using Logging
+    global_logger( ConsoleLogger(stderr, Logging.Debug) )
+    ```
+    """
+    @debug "Adding $jars to Java classpath."
 end
 
 #=
