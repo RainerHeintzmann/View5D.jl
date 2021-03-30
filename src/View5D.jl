@@ -141,7 +141,10 @@ julia> view5d(rand(5,5,5,3,5)) # a viewer with 5D data should popp up
 julia> using TestImages
 julia> img1 = Float32.(testimage("resolution_test_512.tif"));
 julia> img2 = testimage("mandrill");
+julia> img3 = testimage("simple_3d_ball.tif"); # A 3D dataset
 julia> v1 = view5d(img1);
+julia> v2 = view5d(img2);
+julia> v3 = view5d(img3);
 ```
 """
 
