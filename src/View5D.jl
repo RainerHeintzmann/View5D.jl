@@ -44,7 +44,7 @@ function view5d(myArray::Array)
             end
             myJArr = reshape(myArray,mysize);  # copies all the data  or use reshape...
             myviewer=jcall(V, "Start5DViewerF", JavaObject{:View5D}, (jArr, jint, jint, jint, jint, jint), myJArr, size(myArray,1), size(myArray,2), size(myArray,3), size(myArray,4),size(myArray,5));
-            listmethods(V,"wait")
+            listmethods(V,"Start5DViewerF") # has no problems
             # myviewer=jcall(V, "view5d.Start5DViewerF", JavaObject{:View5D}, (jArr, jint, jint, jint, jint, jint), myJArr, size(myArray,1), size(myArray,2), size(myArray,3), size(myArray,4),size(myArray,5));
             # code copied from Pythons using javabridge:
             # self.o = javabridge.static_call("view5d/View5D", "Start5DViewer"+typ, sig, dc, sz[0], sz[1], sz[2], sz[3], sz[4]);

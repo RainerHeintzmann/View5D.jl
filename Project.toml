@@ -1,0 +1,7 @@
+name = "View5D"
+uuid = "90d841e0-6953-4e90-9f3a-43681da8e949"
+authors = ["rheintzmann <heintzmann@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+JavaCall = "494afd89-becb-516b-aafa-70d2670c0337"
