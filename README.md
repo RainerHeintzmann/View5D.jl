@@ -1,1 +1,1 @@
-Put the View5D repository in Pkg.dir(), which you find in C:\Users\Name\.julia\v0.2 on windows
+The current code finds the library and the class and can list the methods, but it cannot execute any of the routines.
