@@ -120,17 +120,37 @@ function to_jtype(anArray)
     anArray = permutedims(expanddims(anArray,5),(2,1,3,4,5))
     myJArr=Array{jtype}(undef, size(anArray))
     myJArr[:].=anArray[:]
-    @show jtype
-    @show size(myJArr)
+    #@show jtype
+    #@show size(myJArr)
     return (myJArr,jtype)
 end
 
 activeViewer = Ref(Nothing)
 
+"""
+function view5d(myArray :: AbstractArray, exitingViewer=nothing, gamma=nothing)
+
+Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
+The viewer is interactive and support a wide range of user actions. 
+For details see https://nanoimaging.de/View5D
+
+`myArray`. The data to display. View5D will keep the datatyp with very few exceptions.
+```julia-repl
+julia> using View5D
+julia> view5d(rand(5,5,5,3,5)) # a viewer with 5D data should popp up
+julia> using TestImages
+julia> img1 = Float32.(testimage("resolution_test_512.tif"));
+julia> img2 = testimage("mandrill");
+julia> v1 = view5d(img1);
+```
+"""
+
 function view5d(myArray :: AbstractArray, exitingViewer=nothing, gamma=nothing)
         if ! JavaCall.isloaded()
             # JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "View5D.jl","AllClasses"))"])
-            JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "jars","View5D.jar"))"])
+            myPath = ["-Djava.class.path=$(joinpath(@__DIR__, "jars","View5D.jar"))"]
+            @show myPath
+            JavaCall.init(myPath)
             # JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "jars","view5d"))"])
         end
         #V = @JavaCall.jimport view5d.View5D
@@ -139,7 +159,7 @@ function view5d(myArray :: AbstractArray, exitingViewer=nothing, gamma=nothing)
         myJArr, myDataType=to_jtype(myArray)
         # myJArr=Array{myDataType}(undef, mysize)
         #myJArr[:].=myArray[:]
-        @show size(myJArr)
+        # @show size(myJArr)
         # listmethods(V,"Start5DViewer")
         if myDataType <: Complex
             jArr = Vector{jfloat}
