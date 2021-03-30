@@ -10,7 +10,54 @@ using Colors, ImageCore
 
 is_complex(mat) = eltype(mat) <: Complex
 
+# expanddims(x, ::Val{N}) where N = reshape(x, (size(x)..., ntuple(x -> 1, N)...))
 expanddims(x, num_of_dims) = reshape(x, (size(x)..., ntuple(x -> 1, (num_of_dims - ndims(x)))...))
+
+function SetGamma(gamma=1.0, myviewer=nothing)
+    if isnothing(myviewer)
+        myviewer=activeViewer
+    end
+    jcall(myviewer, "SetGamma", Nothing, (jint, jdouble), 0, gamma);
+    # SetGamma = javabridge.make_method("SetGamma","(ID)V")
+end
+
+function ProcessKeyMainWindow(key, myviewer=nothing)
+    if isnothing(myviewer)
+        myviewer=activeViewer
+    end
+    myviewer=jcall(myviewer, "ProcessKeyMainWindow", Nothing, (jchar,), key);
+    # ProcessKeyMainWindow = javabridge.make_method("ProcessKeyMainWindow","(C)V")
+end
+
+function ProcessKeyElementWindow(key, myviewer=nothing)
+    if isnothing(myviewer)
+        myviewer=activeViewer
+    end
+    myviewer=jcall(myviewer, "ProcessElementMainWindow", Nothing, (jchar,), key);
+    # ProcessKeyElementWindow = javabridge.make_method("ProcessKeyElementWindow","(C)V")
+end
+
+function UpdatePanels(myviewer=nothing)
+    if isnothing(myviewer)
+        myviewer=activeViewer
+    end
+    myviewer=jcall(myviewer, "UpdatePanels", Nothing, ());
+end
+
+function repaint(myviewer=nothing)
+    if isnothing(myviewer)
+        myviewer=activeViewer
+    end
+    myviewer=jcall(myviewer, "repaint", Nothing, ());
+end
+
+function ProcessKeys(KeyList, myviewer=nothing)
+    for k in KeyList
+        ProcessKeyMainWindow(k, myviewer)
+        UpdatePanels(myviewer)
+        repaint(myviewer)
+    end
+end
 
 # myArray= rand(64,64,3,1,1)  # this is the 5D-Array to display
 """
@@ -42,9 +89,8 @@ function to_jtype(anArray)
     if isa(ArrayElement, RGB)
         anArray = rawview(channelview(anArray))
         anArray = collect(permutedims(expanddims(anArray,4),(2,3,4,1)))
-        @show size(anArray)
-    end
-    if isa(ArrayElement, Gray)
+        # @show size(anArray)
+    elseif isa(ArrayElement, Gray)
         anArray = rawview(channelview(anArray))
     end
     ArrayElement = anArray[1]
@@ -79,7 +125,9 @@ function to_jtype(anArray)
     return (myJArr,jtype)
 end
 
-function view5d(myArray::Array, exitingViewer=nothing, gamma=nothing)
+activeViewer = Ref(Nothing)
+
+function view5d(myArray :: AbstractArray, exitingViewer=nothing, gamma=nothing)
         if ! JavaCall.isloaded()
             # JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "View5D.jl","AllClasses"))"])
             JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "jars","View5D.jar"))"])
@@ -96,13 +144,19 @@ function view5d(myArray::Array, exitingViewer=nothing, gamma=nothing)
         if myDataType <: Complex
             jArr = Vector{jfloat}
             myviewer=jcall(V, "Start5DViewerC", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myArray,1), size(myArray,2), size(myArray,3), size(myArray,4),size(myArray,5));
+            if isnothing(gamma)
+                gamma=0.2
+            end
         else
             jArr = Vector{myDataType}
-            myviewer=jcall(V, "Start5DViewer", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myArray,1), size(myArray,2), size(myArray,3), size(myArray,4),size(myArray,5));
+            myviewer=jcall(V, "Start5DViewer", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myJArr,1), size(myJArr,2), size(myJArr,3), size(myJArr,4),size(myJArr,5));
         end
+        # activeViewer[] = myviewer # store the active viewer
         if !isnothing(gamma)
-            myviewer=jcall(V, "Start5DViewerC", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myArray,1), size(myArray,2), size(myArray,3), size(myArray,4),size(myArray,5));
-        return myviewer
+            SetGamma(gamma,myviewer)
+        end
+        ProcessKeys("Ti12", myviewer)   # to initialize the zoom and trigger the display update
+    return myviewer
 end
 
 #=
@@ -117,8 +171,32 @@ begin
 end
 =#
 
-# To test:
-# mv=view5d(rand(64,64,3,1,1)+im*rand(64,64,3,1,1))
-#
-
+#=
+setSize = javabridge.make_method("setSize","(II)V")
+setName = javabridge.make_method("setName","(ILjava/lang/String;)V")
+NameElement = javabridge.make_method("NameElement","(ILjava/lang/String;)V")
+NameWindow = javabridge.make_method("NameWindow","(Ljava/lang/String;)V")
+setFontSize = javabridge.make_method("setFontSize","(I)V")
+setUnit = javabridge.make_method("setUnit","(ILjava/lang/String;)V")
+SetGamma = javabridge.make_method("SetGamma","(ID)V")
+setMinMaxThresh = javabridge.make_method("setMinMaxThresh","(IFF)V")
+ProcessKeyMainWindow = javabridge.make_method("ProcessKeyMainWindow","(C)V")
+ProcessKeyElementWindow = javabridge.make_method("ProcessKeyElementWindow","(C)V")
+UpdatePanels = javabridge.make_method("UpdatePanels","()V")
+repaint = javabridge.make_method("repaint","()V")
+hide = javabridge.make_method("hide","()V")
+toFront = javabridge.make_method("toFront","()V")
+SetElementsLinked = javabridge.make_method("SetElementsLinked","(Z)V") # Z means Boolean
+closeAll = javabridge.make_method("closeAll","()V")
+DeleteAllMarkerLists = javabridge.make_method("DeleteAllMarkerLists","()V")
+ExportMarkers = javabridge.make_method("ExportMarkers","(I)[[D")
+ExportMarkerLists = javabridge.make_method("ExportMarkerLists","()[[D")
+ExportMarkersString = javabridge.make_method("ExportMarkers","()Ljava/lang/String;")
+ImportMarkers = javabridge.make_method("ImportMarkers","([[F)V")
+ImportMarkerLists = javabridge.make_method("ImportMarkerLists","([[F)V")
+AddElem = javabridge.make_method("AddElement","([FIIIII)Lview5d/View5D;")
+ReplaceDataB = javabridge.make_method("ReplaceDataB","(I,I[B)V")
+setMinMaxThresh = javabridge.make_method("setMinMaxThresh","(IDD)V")
+SetAxisScalesAndUnits = javabridge.make_method("SetAxisScalesAndUnits","(DDDDDDDDDDDDLjava/lang/String;[Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;)V")
+=#
 end # module
