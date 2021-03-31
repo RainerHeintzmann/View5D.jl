@@ -119,8 +119,8 @@ function to_jtype(anArray)
         anArray = collect(permutedims(expanddims(anArray,5),(2,3,4,1,5)))
         # @show size(anArray)
     elseif isa(ArrayElement, Gray)
-        # anArray = rawview(channelview(permutedims(expanddims(anArray,5),(2,1,3,4,5))))
-        anArray = expanddims(rawview(channelview(anArray),5))
+        # anArray = rawview(channelview(permutedims(expanddims(anArray,5),(2,1,3,4,5))))        
+        anArray = expanddims(rawview(channelview(anArray)),5)
     end
     ArrayElement = anArray[1]
     if isa(ArrayElement, Float32)
@@ -177,7 +177,7 @@ julia> v3 = view5d(img3);
 ```
 """
 
-function view5d(myArray :: AbstractArray, exitingViewer=nothing, gamma=nothing)
+function view5d(myArray :: AbstractArray, exitingViewer=nothing; gamma=nothing, replace=false)
         if ! JavaCall.isloaded()
             # In the line below dirname(@__DIR__) is absolutely crucial, otherwise strange errors appear
             # in dependence of how the julia system initializes and whether you run in VScode or
