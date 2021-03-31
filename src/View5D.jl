@@ -95,7 +95,7 @@ function to_jtype(anArray)
     ArrayElement = anArray[1]
     if is_complex(anArray)
         jtype=jfloat
-        anArray = permutedims(expanddims(anArray,5),(2,1,3,4,5))
+        anArray = permutedims(expanddims(anArray,5),(2,1,3,4,5)) # expanddims(anArray,5) # 
         #=
         mysize = size(anArray)
         fsize = prod(mysize)
@@ -115,10 +115,12 @@ function to_jtype(anArray)
     end
     if isa(ArrayElement, RGB)
         anArray = rawview(channelview(anArray))
-        anArray = collect(permutedims(expanddims(anArray,4),(2,3,4,1)))
+        # anArray = collect(permutedims(expanddims(anArray,5),(3,2,4,1,5)))
+        anArray = collect(permutedims(expanddims(anArray,5),(2,3,4,1,5)))
         # @show size(anArray)
     elseif isa(ArrayElement, Gray)
-        anArray = rawview(channelview(anArray))
+        # anArray = rawview(channelview(permutedims(expanddims(anArray,5),(2,1,3,4,5))))
+        anArray = expanddims(rawview(channelview(anArray),5))
     end
     ArrayElement = anArray[1]
     if isa(ArrayElement, Float32)
@@ -142,9 +144,9 @@ function to_jtype(anArray)
         jtype=jint
     end
     # mysize = prod(size(anArray))
-    anArray = permutedims(expanddims(anArray,5),(2,1,3,4,5))
+    anArray = permutedims(expanddims(anArray,5),(2,1,3,4,5))  # expanddims(anArray,5) # 
     myJArr=Array{jtype}(undef, size(anArray))
-    myJArr[:].=anArray[:]
+    myJArr[:] .= anArray[:]
     #@show jtype
     #@show size(myJArr)
     return (myJArr,jtype)
