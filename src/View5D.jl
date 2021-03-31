@@ -1,5 +1,5 @@
 module View5D
-export view5d, to_jtype
+export view5d, to_jtype, viewers
 
 using JavaCall
 using Colors, ImageCore
@@ -15,7 +15,7 @@ expanddims(x, num_of_dims) = reshape(x, (size(x)..., ntuple(x -> 1, (num_of_dims
 
 function SetGamma(gamma=1.0, myviewer=nothing)
     if isnothing(myviewer)
-        myviewer=activeViewer
+        myviewer=activeViewer[]
     end
     jcall(myviewer, "SetGamma", Nothing, (jint, jdouble), 0, gamma);
     # SetGamma = javabridge.make_method("SetGamma","(ID)V")
@@ -23,7 +23,7 @@ end
 
 function ProcessKeyMainWindow(key, myviewer=nothing)
     if isnothing(myviewer)
-        myviewer=activeViewer
+        myviewer=activeViewer[]
     end
     myviewer=jcall(myviewer, "ProcessKeyMainWindow", Nothing, (jchar,), key);
     # ProcessKeyMainWindow = javabridge.make_method("ProcessKeyMainWindow","(C)V")
@@ -125,7 +125,7 @@ function to_jtype(anArray)
     return (myJArr,jtype)
 end
 
-activeViewer = Ref(Nothing)
+viewers = Dict() # Ref[Dict]
 
 """
 function view5d(myArray :: AbstractArray, exitingViewer=nothing, gamma=nothing)
@@ -150,9 +150,13 @@ julia> v3 = view5d(img3);
 
 function view5d(myArray :: AbstractArray, exitingViewer=nothing, gamma=nothing)
         if ! JavaCall.isloaded()
-            # JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "View5D.jl","AllClasses"))"])
-            myPath = ["-Djava.class.path=$(joinpath(@__DIR__, "jars","View5D.jar"))"]
-            @show myPath
+            # In the line below dirname(@__DIR__) is absolutely crucial, otherwise strange errors appear
+            # in dependence of how the julia system initializes and whether you run in VScode or
+            # an ordinary julia REPL. This was hinted by @mkitti
+            # see https://github.com/JuliaInterop/JavaCall.jl/issues/139
+            # for details
+            myPath = ["-Djava.class.path=$(joinpath(dirname(@__DIR__), "jars","View5D.jar"))"]
+            print("Initializing JavaCall with callpath: $myPath\n")
             JavaCall.init(myPath)
             # JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "jars","view5d"))"])
         end
@@ -174,7 +178,19 @@ function view5d(myArray :: AbstractArray, exitingViewer=nothing, gamma=nothing)
             jArr = Vector{myDataType}
             myviewer=jcall(V, "Start5DViewer", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myJArr,1), size(myJArr,2), size(myJArr,3), size(myJArr,4),size(myJArr,5));
         end
-        # activeViewer[] = myviewer # store the active viewer
+        #@show typeof(myviewer)
+        #@show myviewer
+        if haskey(viewers,"active")
+            if haskey(viewers,"history")
+                push!(viewers["history"], viewers["active"]) 
+            else
+                viewers["history"]= [viewers["active"] ]
+            end
+        end
+        viewers["active"] = myviewer
+        #else
+        #    activeViewer[] = myviewer # store the active viewer
+        #end
         if !isnothing(gamma)
             SetGamma(gamma,myviewer)
         end
