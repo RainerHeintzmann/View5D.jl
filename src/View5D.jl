@@ -113,8 +113,6 @@ function to_jtype(anArray)
         jtype=jlong
     elseif isa(ArrayElement, Int)
         jtype=jint
-    elseif isa(ArrayElement, Int)
-        jtype=jint
     end
     # mysize = prod(size(anArray))
     anArray = permutedims(expanddims(anArray,5),(2,1,3,4,5))
@@ -172,7 +170,7 @@ function view5d(myArray :: AbstractArray, exitingViewer=nothing, gamma=nothing)
             jArr = Vector{jfloat}
             myviewer=jcall(V, "Start5DViewerC", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myArray,1), size(myArray,2), size(myArray,3), size(myArray,4),size(myArray,5));
             if isnothing(gamma)
-                gamma=0.2
+                gamma=0.3
             end
         else
             jArr = Vector{myDataType}
@@ -198,7 +196,17 @@ function view5d(myArray :: AbstractArray, exitingViewer=nothing, gamma=nothing)
     return myviewer
 end
 
+end # module
+
 #=
+
+This is a copy from my Python file to remind me of future extensions of calling this viewer.
+TODO: (already in the python version)
+- allow the addition of new elements into the viewer
+- allow replacement of elements for live-view updates
+- support axis names and scalings
+- release as a general release
+
 using JavaCall
 
 begin
@@ -238,4 +246,3 @@ ReplaceDataB = javabridge.make_method("ReplaceDataB","(I,I[B)V")
 setMinMaxThresh = javabridge.make_method("setMinMaxThresh","(IDD)V")
 SetAxisScalesAndUnits = javabridge.make_method("SetAxisScalesAndUnits","(DDDDDDDDDDDDLjava/lang/String;[Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;)V")
 =#
-end # module
