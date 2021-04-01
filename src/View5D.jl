@@ -157,27 +157,60 @@ end
 
 viewers = Dict() # Ref[Dict]
 
-function start_viewer(V, myJArr, jtype="jfloat", mode="new", isCpx=false)
+function get_active_viewer()
+    if haskey(viewers,"active")
+        myviewer=viewers["active"]    
+    else
+        myviewer=nothing
+    end
+end
+
+function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false)
     jArr = Vector{jtype}
     @show size(myJArr)
     sizeX,sizeY,sizeZ,sizeE,sizeT = size(myJArr)
+    addCpx = ""
     if isCpx
         sizeX /= 2
-        command = "Start5DViewerC"
-    else
-        command = "Start5DViewer"
+        addCpx = "C"
     end
+
+    V = @jimport view5d.View5D
+    if isnothing(viewer)
+        viewer = get_active_viewer();
+        if isnothing(viewer)
+            viewer=V
+        end
+    end
+
     if mode == "new"
-        myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint), myJArr[:],
-                        sizeX, sizeY, sizeZ, sizeE, sizeT);
+        command = string("Start5DViewer", addCpx)
+        myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint),
+                        myJArr[:], sizeX, sizeY, sizeZ, sizeE, sizeT);            
     elseif mode == "replace"
-        myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint), myJArr[:],
-                        sizeX, sizeY, sizeZ, sizeE, sizeT);
+        command = string("ReplaceData", addCpx)
+        # @show viewer
+        myviewer=jcall(viewer, command, Nothing, (jint, jint, jArr), 
+        jint(0), jint(0), myJArr[:]);
     elseif mode == "add_element"
-        myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint), myJArr[:], 
-                        sizeX, sizeY, sizeZ, sizeE, sizeT);
+        command = string("AddElement", addCpx)
+        myviewer=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
+                        myJArr[:],sizeX, sizeY, sizeZ, sizeE, sizeT);
+    else
+        throw(ArgumentError("unknown mode $mode, choose new, replace or add_element"))
     end
 end
+
+#= I am again stuck a bit with a particular call:
+```julia
+julia> listmethods(V, "ReplaceData")[4]
+void ReplaceData(int, int, double[])
+
+myviewer=jcall(viewer, "ReplaceData", Nothing, (jint, jint, jArr), 
+                        element, time, myJArr[:]);
+ERROR: JavaCall.JavaCallError("Error calling Java: java.lang.NoSuchMethodError: ReplaceData")
+```
+=#
 
 """
 function view5d(myArray :: AbstractArray, exitingViewer=nothing, gamma=nothing)
@@ -191,7 +224,7 @@ For details see https://nanoimaging.de/View5D
 # Example
 ```julia-repl
 julia> using View5D
-julia> view5d(rand(5,5,5,3,5)) # a viewer with 5D data should popp up
+julia> view5d(rand(6,5,4,3,2)) # a viewer with 5D data should popp up
 julia> using TestImages
 julia> img1 = Float32.(testimage("resolution_test_512.tif"));
 julia> img2 = testimage("mandrill");
@@ -202,7 +235,7 @@ julia> v3 = view5d(img3);
 ```
 """
 
-function view5d(myArray :: AbstractArray, exitingViewer=nothing; gamma=nothing, mode="new")
+function view5d(myArray :: AbstractArray, viewer=nothing; gamma=nothing, mode="new")
         if ! JavaCall.isloaded()
             # In the line below dirname(@__DIR__) is absolutely crucial, otherwise strange errors appear
             # in dependence of how the julia system initializes and whether you run in VScode or
@@ -215,7 +248,6 @@ function view5d(myArray :: AbstractArray, exitingViewer=nothing; gamma=nothing, 
             # JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "jars","view5d"))"])
         end
         #V = @JavaCall.jimport view5d.View5D
-        V = @jimport view5d.View5D
 
         myJArr, myDataType=to_jtype(myArray)
         # myJArr=Array{myDataType}(undef, mysize)
@@ -228,14 +260,14 @@ function view5d(myArray :: AbstractArray, exitingViewer=nothing; gamma=nothing, 
             @show size(myArray)
             @show size(myJArr)
             # myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myJArr,1), size(myJArr,2), size(myJArr,3), size(myJArr,4),size(myJArr,5));
-            myviewer = start_viewer(V, myJArr,jfloat, mode, true)
+            myviewer = start_viewer(viewer, myJArr,jfloat, mode, true)
             if isnothing(gamma)
                 gamma=0.3
             end
         else
             @show size(myArray)
             @show size(myJArr)
-            myviewer = start_viewer(V, myJArr,myDataType, mode)
+            myviewer = start_viewer(viewer, myJArr,myDataType, mode)
         end
         #@show typeof(myviewer)
         #@show myviewer
