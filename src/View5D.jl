@@ -190,8 +190,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false)
     elseif mode == "replace"
         command = string("ReplaceData", addCpx)
         # @show viewer
-        myviewer=jcall(viewer, command, Nothing, (jint, jint, jArr), 
-        jint(0), jint(0), myJArr[:]);
+        jcall(viewer, command, Nothing, (jint, jint, jArr), jint(0), jint(0), myJArr[:]);
     elseif mode == "add_element"
         command = string("AddElement", addCpx)
         myviewer=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
