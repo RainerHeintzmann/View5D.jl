@@ -27,6 +27,8 @@ Future versions will support features such as
 """
 module View5D
 export view5d, to_jtype, viewers
+export set_gamma, process_key_element_window, process_key_main_window, process_keys
+export repaint, update_panels
 
 using JavaCall
 using Colors, ImageCore
@@ -40,48 +42,48 @@ is_complex(mat) = eltype(mat) <: Complex
 # expanddims(x, ::Val{N}) where N = reshape(x, (size(x)..., ntuple(x -> 1, N)...))
 expanddims(x, num_of_dims) = reshape(x, (size(x)..., ntuple(x -> 1, (num_of_dims - ndims(x)))...))
 
-function SetGamma(gamma=1.0, myviewer=nothing)
+function set_gamma(gamma=1.0, myviewer=nothing)
     if isnothing(myviewer)
-        myviewer=activeViewer[]
+        myviewer=viewers["active"]
     end
     jcall(myviewer, "SetGamma", Nothing, (jint, jdouble), 0, gamma);
     # SetGamma = javabridge.make_method("SetGamma","(ID)V")
 end
 
-function ProcessKeyMainWindow(key, myviewer=nothing)
+function process_key_main_window(key, myviewer=nothing)
     if isnothing(myviewer)
-        myviewer=activeViewer[]
+        myviewer=viewers["active"]
     end
     myviewer=jcall(myviewer, "ProcessKeyMainWindow", Nothing, (jchar,), key);
     # ProcessKeyMainWindow = javabridge.make_method("ProcessKeyMainWindow","(C)V")
 end
 
-function ProcessKeyElementWindow(key, myviewer=nothing)
+function process_key_element_window(key, myviewer=nothing)
     if isnothing(myviewer)
-        myviewer=activeViewer
+        myviewer=viewers["active"]
     end
     myviewer=jcall(myviewer, "ProcessElementMainWindow", Nothing, (jchar,), key);
     # ProcessKeyElementWindow = javabridge.make_method("ProcessKeyElementWindow","(C)V")
 end
 
-function UpdatePanels(myviewer=nothing)
+function update_panels(myviewer=nothing)
     if isnothing(myviewer)
-        myviewer=activeViewer
+        myviewer=viewers["active"]
     end
     myviewer=jcall(myviewer, "UpdatePanels", Nothing, ());
 end
 
 function repaint(myviewer=nothing)
     if isnothing(myviewer)
-        myviewer=activeViewer
+        myviewer=viewers["active"]
     end
     myviewer=jcall(myviewer, "repaint", Nothing, ());
 end
 
-function ProcessKeys(KeyList, myviewer=nothing)
+function process_keys(KeyList, myviewer=nothing)
     for k in KeyList
-        ProcessKeyMainWindow(k, myviewer)
-        UpdatePanels(myviewer)
+        process_key_main_window(k, myviewer)
+        update_panels(myviewer)
         repaint(myviewer)
     end
 end
@@ -95,7 +97,8 @@ function to_jtype(anArray)
     ArrayElement = anArray[1]
     if is_complex(anArray)
         jtype=jfloat
-        anArray = permutedims(expanddims(anArray,5),(2,1,3,4,5)) # expanddims(anArray,5) # 
+        # anArray = permutedims(expanddims(anArray,5),(2,1,3,4,5)) # expanddims(anArray,5) # 
+        anArray = expanddims(anArray,5) # 
         #=
         mysize = size(anArray)
         fsize = prod(mysize)
@@ -106,7 +109,7 @@ function to_jtype(anArray)
         =#
         mysize = size(anArray)
         fsize = prod(mysize)
-        newsize = Base.setindex(mysize,mysize[5]*2,5)
+        newsize = Base.setindex(mysize,mysize[1]*2,1)
         myJArr = Array{jtype}(undef, newsize)
         #myJArr[:] .= reinterpret(jfloat,anArray[:]),
         myJArr[1:2:2*fsize] .= real.(anArray[:]);  # copies all the real data
@@ -144,7 +147,7 @@ function to_jtype(anArray)
         jtype=jint
     end
     # mysize = prod(size(anArray))
-    anArray = permutedims(expanddims(anArray,5),(2,1,3,4,5))  # expanddims(anArray,5) # 
+    anArray = expanddims(anArray,5) # permutedims(expanddims(anArray,5),(2,1,3,4,5))  # 
     myJArr=Array{jtype}(undef, size(anArray))
     myJArr[:] .= anArray[:]
     #@show jtype
@@ -153,6 +156,28 @@ function to_jtype(anArray)
 end
 
 viewers = Dict() # Ref[Dict]
+
+function start_viewer(V, myJArr, jtype="jfloat", mode="new", isCpx=false)
+    jArr = Vector{jtype}
+    @show size(myJArr)
+    sizeX,sizeY,sizeZ,sizeE,sizeT = size(myJArr)
+    if isCpx
+        sizeX /= 2
+        command = "Start5DViewerC"
+    else
+        command = "Start5DViewer"
+    end
+    if mode == "new"
+        myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint), myJArr[:],
+                        sizeX, sizeY, sizeZ, sizeE, sizeT);
+    elseif mode == "replace"
+        myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint), myJArr[:],
+                        sizeX, sizeY, sizeZ, sizeE, sizeT);
+    elseif mode == "add_element"
+        myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint), myJArr[:], 
+                        sizeX, sizeY, sizeZ, sizeE, sizeT);
+    end
+end
 
 """
 function view5d(myArray :: AbstractArray, exitingViewer=nothing, gamma=nothing)
@@ -177,7 +202,7 @@ julia> v3 = view5d(img3);
 ```
 """
 
-function view5d(myArray :: AbstractArray, exitingViewer=nothing; gamma=nothing, replace=false)
+function view5d(myArray :: AbstractArray, exitingViewer=nothing; gamma=nothing, mode="new")
         if ! JavaCall.isloaded()
             # In the line below dirname(@__DIR__) is absolutely crucial, otherwise strange errors appear
             # in dependence of how the julia system initializes and whether you run in VScode or
@@ -199,13 +224,18 @@ function view5d(myArray :: AbstractArray, exitingViewer=nothing; gamma=nothing, 
         # listmethods(V,"Start5DViewer")
         if myDataType <: Complex
             jArr = Vector{jfloat}
-            myviewer=jcall(V, "Start5DViewerC", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myArray,1), size(myArray,2), size(myArray,3), size(myArray,4),size(myArray,5));
+            #myviewer=jcall(V, "Start5DViewerC", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myArray,1), size(myArray,2), size(myArray,3), size(myArray,4),size(myArray,5));
+            @show size(myArray)
+            @show size(myJArr)
+            # myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myJArr,1), size(myJArr,2), size(myJArr,3), size(myJArr,4),size(myJArr,5));
+            myviewer = start_viewer(V, myJArr,jfloat, mode, true)
             if isnothing(gamma)
                 gamma=0.3
             end
         else
-            jArr = Vector{myDataType}
-            myviewer=jcall(V, "Start5DViewer", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myJArr,1), size(myJArr,2), size(myJArr,3), size(myJArr,4),size(myJArr,5));
+            @show size(myArray)
+            @show size(myJArr)
+            myviewer = start_viewer(V, myJArr,myDataType, mode)
         end
         #@show typeof(myviewer)
         #@show myviewer
@@ -217,13 +247,10 @@ function view5d(myArray :: AbstractArray, exitingViewer=nothing; gamma=nothing, 
             end
         end
         viewers["active"] = myviewer
-        #else
-        #    activeViewer[] = myviewer # store the active viewer
-        #end
         if !isnothing(gamma)
-            SetGamma(gamma,myviewer)
+            set_gamma(gamma,myviewer)
         end
-        ProcessKeys("Ti12", myviewer)   # to initialize the zoom and trigger the display update
+        process_keys("Ti12", myviewer)   # to initialize the zoom and trigger the display update
     return myviewer
 end
 
