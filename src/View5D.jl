@@ -2,7 +2,7 @@
 Visualizing multiple-dimensional (ND) datasets (AbstractArrays) is important for data research and debugging of ND algorithms. `View5D.jl`  (https://github.com/RainerHeintzmann/View5D.jl) is a Java-based viewer for up to 5-dimensional data (including `Complex`). It supports three mutually linked orthogonal slicing displays for XYZ coordinates, arbitrary numbers of colors (4th `element` dimension) which can also be used to display spectral curves and a time slider for the 5th dimension.  
 
 
-The Java viewer `View5D` has been integrated into julia with the help of `JavaCall.jl`.  Currently the viewer has its full Java functionality which includes displaying and interacting with 5D data. Generating up to three-dimensional histograms and interacting with them to select regions of interest in the 3D histogram but shown as a selection in the data. It allows selection of a gate `element` where thresholds can be applied to which have an effect on statistical evaluation (mean, max, min) in other `element`s if the `gate` is activated. It further supports multiplicative overlay of colors. This feature is nice when processed data (e.g. local orientation information or polarization direction or ratios) needs to be presented along with brightness data. By choosing a gray-valued and a  constant brightness value-only (HSV) colormap for brightness and orientation data respectively, in multiplicative overlay mode a result is obtained that looks like the orientation information is staining the brightness. These results look often much nicer compared to gating-based display based on a brightness-gate, which is also supported.
+The Java viewer `View5D` (https://nanoimaging.de/View5D) has been integrated into julia with the help of `JavaCall.jl`.  Currently the viewer has its full Java functionality which includes displaying and interacting with 5D data. Generating up to three-dimensional histograms and interacting with them to select regions of interest in the 3D histogram but shown as a selection in the data. It allows selection of a gate `element` where thresholds can be applied to which have an effect on statistical evaluation (mean, max, min) in other `element`s if the `gate` is activated. It further supports multiplicative overlay of colors. This feature is nice when processed data (e.g. local orientation information or polarization direction or ratios) needs to be presented along with brightness data. By choosing a gray-valued and a  constant brightness value-only (HSV) colormap for brightness and orientation data respectively, in multiplicative overlay mode a result is obtained that looks like the orientation information is staining the brightness. These results look often much nicer compared to gating-based display based on a brightness-gate, which is also supported.
 Color display of floating-point or 16 or higher bit data supports adaptively updating colormaps.
 Zooming in on a colormap,  by changing the lower and upper display threshold, for some time the colormap is simply changed to yield a smooth experience but occasionally the cached display data is recomputed to avoid loosing fine granularity on the color levels.
 
@@ -26,9 +26,12 @@ Future versions will support features such as
 
 """
 module View5D
-export view5d, to_jtype, viewers
-export set_gamma, process_key_element_window, process_key_main_window, process_keys
-export repaint, update_panels
+export view5d
+export process_key_element_window, process_key_main_window, process_keys
+export set_axis_scales_and_units
+export repaint, update_panels, to_front, hide_viewer
+export set_gamma, set_element_name, get_num_elements, get_num_times
+export set_display_size
 
 using JavaCall
 using Colors, ImageCore
@@ -42,50 +45,161 @@ is_complex(mat) = eltype(mat) <: Complex
 # expanddims(x, ::Val{N}) where N = reshape(x, (size(x)..., ntuple(x -> 1, N)...))
 expanddims(x, num_of_dims) = reshape(x, (size(x)..., ntuple(x -> 1, (num_of_dims - ndims(x)))...))
 
-function set_gamma(gamma=1.0, myviewer=nothing)
-    if isnothing(myviewer)
-        myviewer=viewers["active"]
-    end
-    jcall(myviewer, "SetGamma", Nothing, (jint, jdouble), 0, gamma);
-    # SetGamma = javabridge.make_method("SetGamma","(ID)V")
+"""
+    set_gamma(gamma=1.0, myviewer=nothing; element=0)
+    modifies the display gamma in myviewer
+gamma: defines how the data is displayed via shown_value = data .^gamma. 
+        More precisely: clip((data.-low).(high-low)) .^ gamma
+myviewer: The viewer to which this gamma should be applied to. By default the active viewer is used.
+element: to which color channel (element) should this gamma be applied to
+
+#Example
+```julia
+julia> v2 = view5d(rand(Float64,6,5,4,3,1))
+julia> set_gamma(0.2,element=1)
+```
+"""
+function set_gamma(gamma=1.0, myviewer=nothing; element=0)
+    myviewer=get_viewer(myviewer)
+    jcall(myviewer, "SetGamma", Nothing, (jint, jdouble), element, gamma);
+    update_panels()
 end
 
-function process_key_main_window(key, myviewer=nothing)
-    if isnothing(myviewer)
-        myviewer=viewers["active"]
-    end
-    myviewer=jcall(myviewer, "ProcessKeyMainWindow", Nothing, (jchar,), key);
-    # ProcessKeyMainWindow = javabridge.make_method("ProcessKeyMainWindow","(C)V")
+"""
+    set_element_name(new_name, myviewer=nothing; element=0)
+    provides a new name to the `element` displayed in the viewer
+myviewer: The viewer to apply this to. By default the active viewer is used.
+element: The element to rename
+"""
+function set_element_name(new_name::String, myviewer=nothing; element=0)
+    myviewer=get_viewer(myviewer)
+    jcall(myviewer, "setName", Nothing, (jint, JString), element, new_name);
+    update_panels()
 end
 
-function process_key_element_window(key, myviewer=nothing)
-    if isnothing(myviewer)
-        myviewer=viewers["active"]
-    end
-    myviewer=jcall(myviewer, "ProcessElementMainWindow", Nothing, (jchar,), key);
-    # ProcessKeyElementWindow = javabridge.make_method("ProcessKeyElementWindow","(C)V")
+"""
+    set_display_size(sx::Int,sy::Int, myviewer=nothing)
+    sets the size on the screen, the viewer is occupying
+sx: horizontal size in pixels
+sy: vertical size in pixels
+myviewer: The viewer to apply this to. By default the active viewer is used.
+"""
+function set_display_size(sx::Int,sy::Int, myviewer=nothing) # ; reinit=true
+    myviewer=get_viewer(myviewer)
+    myviewer=jcall(myviewer, "setSize", Nothing, (jint,jint),sx,sy) ;
+    #if reinit
+    #    process_keys("i", myviewer)  # does not work, -> panel?
+    #end
+end
+
+"""
+    get_num_elements(myviewer=nothing)
+    gets the number of currently existing elements in the viewer
+myviewer: The viewer to apply this to. By default the active viewer is used.
+"""
+function get_num_elements(myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    num_elem=jcall(myviewer, "getNumElements", jint, ());
+end
+
+function set_axis_scales_and_units(myviewer=nothing;element=0, mytime=0)
+    myviewer=get_viewer(myviewer)
+    jcall(myviewer, "getNuSetAxisScalesAndUnitsmElements", Nothing, (jdouble,jdouble,jdouble,jdoublejdouble,jdouble,jdouble,jdoublejdouble,jdouble,jdouble,jdouble,
+            JString,JString[],JString,JString[]),
+            );
+
+end
+
+"""
+    get_num_time(myviewer=nothing)
+    gets the number of currently existing time points in the viewer
+myviewer: The viewer to apply this to. By default the active viewer is used.
+"""
+function get_num_times(myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    num_elem=jcall(myviewer, "getNumTime", jint, ());
+end
+
+"""
+    to_front(myviewer=nothing)
+    moves the viewer on top of other windows
+myviewer: The viewer to apply this to. By default the active viewer is used.
+"""
+function to_front(myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    jcall(myviewer, "toFront", Nothing, ());
+end
+
+"""
+    hide(myviewer=nothing)
+    hides the viewer. It can be shown again by calling "to_front"
+myviewer: The viewer to apply this to. By default the active viewer is used.
+"""
+function hide_viewer(myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    jcall(myviewer, "hide", Nothing, ());
 end
 
 function update_panels(myviewer=nothing)
-    if isnothing(myviewer)
-        myviewer=viewers["active"]
-    end
+    myviewer=get_viewer(myviewer)
     myviewer=jcall(myviewer, "UpdatePanels", Nothing, ());
 end
 
 function repaint(myviewer=nothing)
-    if isnothing(myviewer)
-        myviewer=viewers["active"]
-    end
+    myviewer=get_viewer(myviewer)
     myviewer=jcall(myviewer, "repaint", Nothing, ());
 end
 
-function process_keys(KeyList, myviewer=nothing)
+function process_key_main_window(key::Char, myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    myviewer=jcall(myviewer, "ProcessKeyMainWindow", Nothing, (jchar,), key);
+    # ProcessKeyMainWindow = javabridge.make_method("ProcessKeyMainWindow","(C)V")
+end
+
+"""
+    process_key_element_window(key::Char, myviewer=nothing)
+    Processes a single key in the element window (bottom right panel of "view5d").
+    For a discription of keys look at the context menu in the viewer. 
+    More information at https://nanoimaging.de/View5D
+key: single key to process inthe element window
+"""
+function process_key_element_window(key::Char, myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    myviewer=jcall(myviewer, "ProcessKeyElementWindow", Nothing, (jchar,), key);
+    # ProcessKeyElementWindow = javabridge.make_method("ProcessKeyElementWindow","(C)V")
+end
+
+
+"""
+    process_keys(KeyList::String, myviewer=nothing; mode="main")
+    Sends key strokes to the viewer. This allows an easy remote-control of the viewer since almost all of its features can be controlled by key-strokes.
+    Note that panel-specific keys (e.g."q": switching to plot-diplay) are currently not supported.
+    For a discription of keys look at the context menu in the viewer. 
+    More information at https://nanoimaging.de/View5D
+
+KeyList: list of keystrokes (as a String) to successively be processed by the viewer. An update is automatically called afterwards.
+
+myviewer: the viewer to which the keys are send.
+
+mode: determines to which panel the keys are sent to. Currently supported: "main" (default) or "element"
+
+#see also
+process_key_main_window: processes a single key in the main window
+process_key_element_window: processes a single key in the element window
+"""
+function process_keys(KeyList::String, myviewer=nothing; mode="main")
     for k in KeyList
-        process_key_main_window(k, myviewer)
+        if mode=="main"
+            process_key_main_window(k, myviewer)
+        elseif mode=="element"
+            process_key_element_window(k, myviewer)
+        else
+            throw(ArgumentError("unsupported mode $mode. Use `main` or `element`"))
+        end
         update_panels(myviewer)
         repaint(myviewer)
     end
+    return
 end
 
 # myArray= rand(64,64,3,1,1)  # this is the 5D-Array to display
@@ -165,9 +279,28 @@ function get_active_viewer()
     end
 end
 
-function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false)
+function set_active_viewer(myviewer)
+    if haskey(viewers,"active")
+        if haskey(viewers,"history")
+            push!(viewers["history"], viewers["active"]) 
+        else
+            viewers["history"]= [viewers["active"] ]
+        end
+    end
+    viewers["active"] = myviewer
+end
+
+function get_viewer(viewer=nothing)
+    if isnothing(viewer)
+        return get_active_viewer()
+    else
+        return viewer
+    end
+end
+
+function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false; element=0, mytime=0)
     jArr = Vector{jtype}
-    @show size(myJArr)
+    #@show size(myJArr)
     sizeX,sizeY,sizeZ,sizeE,sizeT = size(myJArr)
     addCpx = ""
     if isCpx
@@ -189,8 +322,9 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false)
                         myJArr[:], sizeX, sizeY, sizeZ, sizeE, sizeT);            
     elseif mode == "replace"
         command = string("ReplaceData", addCpx)
-        # @show viewer
-        jcall(viewer, command, Nothing, (jint, jint, jArr), jint(0), jint(0), myJArr[:]);
+        #@show viewer 
+        jcall(viewer, command, Nothing, (jint, jint, jArr), element, mytime, myJArr[:]);
+        myviewer = viewer
     elseif mode == "add_element"
         command = string("AddElement", addCpx)
         myviewer=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
@@ -200,25 +334,36 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false)
     end
 end
 
-#= I am again stuck a bit with a particular call:
-```julia
-julia> listmethods(V, "ReplaceData")[4]
-void ReplaceData(int, int, double[])
-
-myviewer=jcall(viewer, "ReplaceData", Nothing, (jint, jint, jArr), 
-                        element, time, myJArr[:]);
-ERROR: JavaCall.JavaCallError("Error calling Java: java.lang.NoSuchMethodError: ReplaceData")
-```
-=#
-
 """
-function view5d(myArray :: AbstractArray, exitingViewer=nothing, gamma=nothing)
+    view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0)
 
 Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
 The viewer is interactive and support a wide range of user actions. 
 For details see https://nanoimaging.de/View5D
 
-`myArray`. The data to display. View5D will keep the datatyp with very few exceptions.
+data: the array data to display. A large range of datatypes (including Complex32 and UInt16) is supported.
+
+viewer: of interest only for modes "replace" and "add_element". This viewer instance (as returned by previous calls) is used for display.
+        Note that this module keeps track of previously invoked viewers. By default the "viewers["active"]" is used.
+
+gamma: The gamma settings to display this data with. By default the setting is 1.0 for real-valued data and 0.3 for complex valued data.
+
+mode: allows the user to switch between display modes by either 
+    `mode="new"` (default): invoking a new View5D.view5d instance to display `data` in
+    `mode="replace"`: replacing a single element and time position by `data`. Useful to observe iterative changes.
+    `mode="add_element"`: adds a single (!) element to the viewer. This can be useful for keeping track of a series of iterative images.
+    Note that both modes "replace" and "add_element" only work with a viewer that was previously created via "new".
+    Via the "viewer" argument, a specific viewer can be selected. By default the last previously created one is active.
+    Note also that it is the user's responsibility to NOT change the size and data-type of the data to display in the modes "replace" and "add_element".
+
+element, time: only used for mode "replace" to specify which element and and time position needs to be replaced. 
+
+#Returns
+An instance (JavaCall.JavaObject) or the viewer, which can be used for further manipulation.
+
+#See also
+set_gamma: changes the gamma value to display the data (useful for enhancing low signals)
+process_keys: allows an easy remote-control of the viewer since almost all of its features can be controlled by key-strokes.
 
 # Example
 ```julia-repl
@@ -234,7 +379,7 @@ julia> v3 = view5d(img3);
 ```
 """
 
-function view5d(myArray :: AbstractArray, viewer=nothing; gamma=nothing, mode="new")
+function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0)
         if ! JavaCall.isloaded()
             # In the line below dirname(@__DIR__) is absolutely crucial, otherwise strange errors appear
             # in dependence of how the julia system initializes and whether you run in VScode or
@@ -248,7 +393,7 @@ function view5d(myArray :: AbstractArray, viewer=nothing; gamma=nothing, mode="n
         end
         #V = @JavaCall.jimport view5d.View5D
 
-        myJArr, myDataType=to_jtype(myArray)
+        myJArr, myDataType=to_jtype(data)
         # myJArr=Array{myDataType}(undef, mysize)
         #myJArr[:].=myArray[:]
         # @show size(myJArr)
@@ -256,30 +401,23 @@ function view5d(myArray :: AbstractArray, viewer=nothing; gamma=nothing, mode="n
         if myDataType <: Complex
             jArr = Vector{jfloat}
             #myviewer=jcall(V, "Start5DViewerC", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myArray,1), size(myArray,2), size(myArray,3), size(myArray,4),size(myArray,5));
-            @show size(myArray)
-            @show size(myJArr)
+            #@show size(data)
+            #@show size(myJArr)
             # myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myJArr,1), size(myJArr,2), size(myJArr,3), size(myJArr,4),size(myJArr,5));
             myviewer = start_viewer(viewer, myJArr,jfloat, mode, true)
             if isnothing(gamma)
                 gamma=0.3
             end
         else
-            @show size(myArray)
-            @show size(myJArr)
+            #@show size(data)
+            #@show size(myJArr)
             myviewer = start_viewer(viewer, myJArr,myDataType, mode)
         end
         #@show typeof(myviewer)
         #@show myviewer
-        if haskey(viewers,"active")
-            if haskey(viewers,"history")
-                push!(viewers["history"], viewers["active"]) 
-            else
-                viewers["history"]= [viewers["active"] ]
-            end
-        end
-        viewers["active"] = myviewer
+        set_active_viewer(myviewer)
         if !isnothing(gamma)
-            set_gamma(gamma,myviewer)
+            set_gamma(gamma,myviewer, element=element)
         end
         process_keys("Ti12", myviewer)   # to initialize the zoom and trigger the display update
     return myviewer
