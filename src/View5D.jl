@@ -32,6 +32,7 @@ export set_axis_scales_and_units
 export repaint, update_panels, to_front, hide_viewer
 export set_gamma, set_element_name, get_num_elements, get_num_times
 export set_display_size
+export export_marker_lists, import_marker_lists, delete_all_marker_lists
 
 using JavaCall
 using Colors, ImageCore
@@ -102,12 +103,62 @@ function get_num_elements(myviewer=nothing)
     num_elem=jcall(myviewer, "getNumElements", jint, ());
 end
 
-function set_axis_scales_and_units(myviewer=nothing;element=0, mytime=0)
-    myviewer=get_viewer(myviewer)
-    jcall(myviewer, "getNuSetAxisScalesAndUnitsmElements", Nothing, (jdouble,jdouble,jdouble,jdoublejdouble,jdouble,jdouble,jdoublejdouble,jdouble,jdouble,jdouble,
-            JString,JString[],JString,JString[]),
-            );
+"""
+    set_axis_scales_and_units(pixelsize=(1.0,1.0,1.0,1.0,1.0),
+        value_name = "intensity",value_unit = "photons",
+        axis_names = ["X", "Y", "Z", "E", "T"],
+        axis_units=["a.u.","a.u.","a.u.","a.u.","a.u."], myviewer=nothing; 
+        element=0,time=0)
 
+    Overwrites the units and scaling of all five axes and the value units and scalings.
+
+pixelsize: 5D vector of pixel sizes.
+value_scale: The scale of the value axis
+
+value_name: The name of the value axis of this element as a String
+
+value_unit: The unit of the value axis of this element as a String
+
+axes_names: The names of the various (X,Y,Z,E,T) axes as a 5D vector of String
+
+axes_units: The units of the various axes as a 5D vector of String
+
+#Example
+```julia
+julia> v1 = view5d(rand(Int16,6,5,4,2,2))
+julia> set_axis_scales_and_units((1,0.02,20,1,2),20,"irradiance","W/cm^2",["position","λ","micro-time","repetition","macro-time"],["mm","µm","ns","#","minutes"],element=0)
+```
+"""
+function set_axis_scales_and_units(pixelsize=(1.0,1.0,1.0,1.0,1.0),
+    value_scale=1.0, value_name = "intensity",value_unit = "photons",
+    axes_names = ["X", "Y", "Z", "E", "T"],
+    axes_units=["a.u.","a.u.","a.u.","a.u.","a.u."], myviewer=nothing; 
+    element=0,time=0)
+
+    myviewer=get_viewer(myviewer)    
+    # the line below set this for all elements and times
+    jStringArr = Vector{JString}
+    L = length(pixelsize)
+    if L != 5
+        @warn "pixelsize should be 5D but has only $L entries. Replacing trailing dimensions by 1.0."
+        tmp=pixelsize;pixelsize=ones(5); pixelsize[1:L].=tmp[:];
+    end
+    L = length(axes_names)
+    if L != 5
+        @warn "axes_names should be 5D but has only $L entries. Replacing trailing dimensions by standard names."
+        tmp=axes_names;axes_names=["X","Y","Z","E","T"]; axes_names[1:L].=tmp[:];
+    end
+    L = length(axes_units)
+    if L != 5
+        @warn "axes_units should be 5D but has only $L entries. Replacing trailing dimensions by \"a.u.\"."
+        tmp=axes_units;axes_units=["a.u.","a.u.","a.u.","a.u.","a.u."]; axes_units[1:L].=tmp[:];
+    end
+    jcall(myviewer, "SetAxisScalesAndUnits", Nothing, (jint,jint, jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,
+            JString,jStringArr,JString,jStringArr),
+            element,time, value_scale, pixelsize..., 0,0,0,0,0,0,
+            value_name, axes_names, value_unit, axes_units);
+    update_panels();
+    repaint();
 end
 
 """
@@ -119,6 +170,58 @@ function get_num_times(myviewer=nothing)
     myviewer=get_viewer(myviewer)
     num_elem=jcall(myviewer, "getNumTime", jint, ());
 end
+
+"""
+    export_marker_lists(myviewer=nothing)
+    gets all the marker lists stored in the viewer as an array of double arrays.
+myviewer: The viewer to apply this to. By default the active viewer is used
+#Returns
+markers: an array of arrays of double. They are interpreted as follows:
+    length(markers): overall number of markers
+    markers[1]: information on the first marker in the following order
+1:2     ListNr, MarkerNr, 
+3:7     PosX,Y,Z,E,T (all raw subpixel position in pixel coordinates)
+8:9     Integral (no BG sub), Max (no BG sub),
+10:16   RealPosX,Y,Z,E,T,Integral(no BG sub),Max(no BG sub)  (all as above but this time considering the axes units and scales)
+17:21   TagInteger, Parent1, Parent2, Child1, Child2
+22      ListColor  (coded)
+"""
+function export_marker_lists(myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    jdoubleArrArr = Vector{Vector{jdouble}}
+    return jcall(myviewer, "ExportMarkerLists", jdoubleArrArr, ());
+end 
+
+"""
+    import_marker_lists(marker_list, myviewer=nothing)
+    imports marker lists to be stored and displayed in the viewer.
+myviewer: The viewer to apply this to. By default the active viewer is used
+#Returns
+markers: an array of arrays of double. Please see `export_marker_lists` for a description of the meaning
+#See also
+export_marker_lists(): The data exported in this way can be read in again by the import_marker_lists routine
+"""
+function import_marker_lists(marker_lists::Vector{Vector{T}}, myviewer=nothing) where {T}
+    myviewer=get_viewer(myviewer)
+    if T != Float32
+        marker_lists = [convert.(Float32,marker_lists[n]) for n in 1:length(marker_lists)]
+    end
+    jfloatArrArr = Vector{Vector{jfloat}}
+    jcall(myviewer, "ImportMarkerLists", Nothing, (jfloatArrArr,), marker_lists);
+    return
+end 
+
+"""
+    delete_all_marker_lists(myviewer=nothing)
+    deletes all the marker lists, which are stored in the viewer
+#See also:
+export_marker_lists(), import_marker_lists()
+"""
+function delete_all_marker_lists(myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    myviewer=jcall(myviewer, "DeleteAllMarkerLists", Nothing, ());
+end
+
 
 """
     to_front(myviewer=nothing)
