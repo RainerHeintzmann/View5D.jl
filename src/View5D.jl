@@ -334,10 +334,19 @@ function import_marker_lists(marker_lists::Vector{Vector{T}}, myviewer=nothing) 
     if T != Float32
         marker_lists = [convert.(Float32,marker_lists[n]) for n in 1:length(marker_lists)]
     end
-    jfloatArrArr = Vector{Vector{jfloat}}
-    jcall(myviewer, "ImportMarkerLists", Nothing, (jfloatArrArr,), marker_lists);
+    jfloatArrArr = Vector{JavaObject{Vector{jfloat}}}
+    converted = JavaCall.convert_arg.(Vector{jfloat}, marker_lists)
+    GC.@preserve converted begin
+        jcall(myviewer, "ImportMarkerLists", Nothing, (jfloatArrArr,), [c[2] for c in converted]);
+    end
     return
-end 
+end
+
+# Hack JavaCall, may not be necessary on versions greater than or equal to 0.8.0
+# Also see multithreading branch of JavaCall
+JavaCall.metaclass(::Type{T}) where T <: AbstractVector = JavaCall.metaclass(Symbol(JavaCall.signature(T)))
+JavaCall.javaclassname(::Type{T}) where T <: AbstractVector = JavaCall.signature(T)
+JavaCall.signature(arg::Type{JavaObject{T}}) where {T <: AbstractVector} = JavaCall.javaclassname(T)
 
 """
     delete_all_marker_lists(myviewer=nothing)
