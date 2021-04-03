@@ -339,6 +339,7 @@ function import_marker_lists(marker_lists::Vector{Vector{T}}, myviewer=nothing) 
     GC.@preserve converted begin
         jcall(myviewer, "ImportMarkerLists", Nothing, (jfloatArrArr,), [c[2] for c in converted]);
     end
+    update_panels()
     return
 end
 
@@ -356,7 +357,9 @@ export_marker_lists(), import_marker_lists()
 """
 function delete_all_marker_lists(myviewer=nothing)
     myviewer=get_viewer(myviewer)
-    myviewer=jcall(myviewer, "DeleteAllMarkerLists", Nothing, ());
+    jcall(myviewer, "DeleteAllMarkerLists", Nothing, ());
+    update_panels()
+    return
 end
 
 
