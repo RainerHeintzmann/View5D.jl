@@ -28,11 +28,13 @@ Future versions will support features such as
 module View5D
 export view5d
 export process_key_element_window, process_key_main_window, process_keys
-export set_axis_scales_and_units
-export repaint, update_panels, to_front, hide_viewer
-export set_gamma, set_element_name, get_num_elements, get_num_times
+export set_axis_scales_and_units, set_value_unit, set_value_name
+export repaint, update_panels, to_front, hide_viewer, set_fontsize
+export set_gamma, set_min_max_thresh
+export set_element_name, get_num_elements, get_num_times, set_title
 export set_display_size
-export export_marker_lists, import_marker_lists, delete_all_marker_lists
+export export_marker_lists, import_marker_lists, delete_all_marker_lists, export_markers_string
+#export init_layout, invalidate 
 
 using JavaCall
 using Colors, ImageCore
@@ -49,9 +51,12 @@ expanddims(x, num_of_dims) = reshape(x, (size(x)..., ntuple(x -> 1, (num_of_dims
 """
     set_gamma(gamma=1.0, myviewer=nothing; element=0)
     modifies the display gamma in myviewer
+
 gamma: defines how the data is displayed via shown_value = data .^gamma. 
         More precisely: clip((data.-low).(high-low)) .^ gamma
+
 myviewer: The viewer to which this gamma should be applied to. By default the active viewer is used.
+
 element: to which color channel (element) should this gamma be applied to
 
 #Example
@@ -79,10 +84,27 @@ function set_element_name(new_name::String, myviewer=nothing; element=0)
 end
 
 """
+    set_title(title, myviewer=nothing)
+    sets the title of the viewer
+
+title: new name of the window of the viewer
+
+myviewer: The viewer to apply this to. By default the active viewer is used.
+"""
+function set_title(title::String, myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    jcall(myviewer, "NameWindow", Nothing, (JString,), title);
+    update_panels()
+end
+
+"""
     set_display_size(sx::Int,sy::Int, myviewer=nothing)
     sets the size on the screen, the viewer is occupying
+
 sx: horizontal size in pixels
+
 sy: vertical size in pixels
+
 myviewer: The viewer to apply this to. By default the active viewer is used.
 """
 function set_display_size(sx::Int,sy::Int, myviewer=nothing) # ; reinit=true
@@ -162,6 +184,92 @@ function set_axis_scales_and_units(pixelsize=(1.0,1.0,1.0,1.0,1.0),
 end
 
 """
+    set_value_unit(unit::String="a.u.", myviewer=nothing; element::Int=0)
+    sets the units for the values of a particular element.
+
+unit: a sting with the unit name
+
+myviewer: The viewer to apply this to. By default the active viewer is used.
+
+element:  the element for which to set the unit (count starts with 0)
+
+#see also
+set_axis_scales_and_units, set_value_name
+"""
+function set_value_unit(unit::String="a.u.", myviewer=nothing; element::Int=0)
+    myviewer=get_viewer(myviewer)
+    jcall(myviewer, "setUnit", Nothing, (jint, JString), element, unit);
+    repaint()
+end
+
+"""
+    set_value_name(name::String="intensity", myviewer=nothing; element::Int=0)
+    sets the name for the values of a particular element.
+
+name: a sting with the name
+
+myviewer: The viewer to apply this to. By default the active viewer is used.
+
+element:  the element for which to set the unit (count starts with 0)
+
+#see also
+set_axis_scales_and_units, set_value_unit
+"""
+function set_value_name(name::String="a.u.", myviewer=nothing; element::Int=0)
+    myviewer=get_viewer(myviewer)
+    jcall(myviewer, "NameElement", Nothing, (jint, JString), element, name);
+    update_panels()
+    repaint()
+end
+
+"""
+    set_fontsize(fontsize::Int=12, myviewer=nothing)
+    sets the fontsize for the text display in the viewer.
+
+fontsize: size of the font in pixels (default is 12px)
+
+myviewer: The viewer to apply this to. By default the active viewer is used.
+
+"""
+function set_fontsize(fontsize::Int=12, myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    jcall(myviewer, "setFontSize", Nothing, (jint,), fontsize);
+end
+
+#= function init_layout(myviewer=nothing; element::Int=0)
+    myviewer=get_viewer(myviewer)
+    jcall(myviewer, "initLayout", Nothing, (jint,), element);
+    update_panels()
+    repaint()
+end
+ =#
+function invalidate(myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    jcall(myviewer, "invalidate", Nothing, ());
+end
+"""
+    set_min_max_thresh(Min::Float64, Max::Float64, myviewer=nothing; element::Int=0)
+    sets the minimum and maximum display ranges for a particular element in the viewer
+
+min: the minimum of the display range of this element
+
+max: the maximum of the display range of this element
+
+myviewer: The viewer to apply this to. By default the active viewer is used.
+
+element:  the element for which to set the unit (count starts with 0)
+
+#see also
+set_axis_scales_and_units
+"""
+function set_min_max_thresh(Min::Number=0.0, Max::Number=1.0, myviewer=nothing; element::Int=0)
+    myviewer=get_viewer(myviewer)
+    jcall(myviewer, "setMinMaxThresh", Nothing, (jint, jdouble, jdouble), element, Min, Max);
+    update_panels();
+    redraw();
+end
+
+"""
     get_num_time(myviewer=nothing)
     gets the number of currently existing time points in the viewer
 myviewer: The viewer to apply this to. By default the active viewer is used.
@@ -190,6 +298,26 @@ function export_marker_lists(myviewer=nothing)
     myviewer=get_viewer(myviewer)
     jdoubleArrArr = Vector{Vector{jdouble}}
     return jcall(myviewer, "ExportMarkerLists", jdoubleArrArr, ());
+end 
+
+"""
+    export_markers_string(myviewer=nothing)
+    gets all the marker lists stored in the viewer as a string in human readable form.
+myviewer: The viewer to apply this to. By default the active viewer is used
+#Returns
+a string with the first column indicating the column labels (separated by tab)
+followed by rows, each representing a single marker with entries separated by tabs in the following order:
+1:2     ListNr, MarkerNr, 
+3:7     PosX,Y,Z,E,T (all raw subpixel position in pixel coordinates)
+8:9     Integral (no BG sub), Max (no BG sub),
+10:16   RealPosX,Y,Z,E,T,Integral(no BG sub),Max(no BG sub)  (all as above but this time considering the axes units and scales)
+17:21   TagInteger, Parent1, Parent2, Child1, Child2
+22      ListColor  (coded)
+"""
+function export_markers_string(myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    jdoubleArrArr = Vector{Vector{jdouble}}
+    return jcall(myviewer, "ExportMarkers", JString, ());
 end 
 
 """
