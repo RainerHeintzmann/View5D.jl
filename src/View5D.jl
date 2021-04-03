@@ -38,8 +38,13 @@ using JavaCall
 using Colors, ImageCore
 # using JavaShowMethods
 
-#View5D_jar = joinpath(@__DIR__, "View5D", "View5D.jar")
-#JavaCall.addClassPath(View5D_jar)
+const View5D_jar = joinpath(@__DIR__, "View5D", "View5D.jar")
+
+function __init__()
+    # This has to be in __init__ and is invoked by `using View5D`
+    # Allows other packages to addClassPath before JavaCall.init() is invoked
+    JavaCall.addClassPath(View5D_jar)
+end
 
 is_complex(mat) = eltype(mat) <: Complex
 
@@ -489,10 +494,14 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new"
             # an ordinary julia REPL. This was hinted by @mkitti
             # see https://github.com/JuliaInterop/JavaCall.jl/issues/139
             # for details
-            myPath = ["-Djava.class.path=$(joinpath(dirname(@__DIR__), "jars","View5D.jar"))"]
-            print("Initializing JavaCall with callpath: $myPath\n")
-            JavaCall.init(myPath)
+            # myPath = ["-Djava.class.path=$(joinpath(dirname(@__DIR__), "jars","View5D.jar"))"]
+            # print("Initializing JavaCall with callpath: $myPath\n")
+            # JavaCall.init(myPath)
             # JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "jars","view5d"))"])
+        
+            # Uses classpath set in __init__
+            JavaCall.init()
+            @info "Initializing JavaCall with classpath" JavaCall.getClassPath()
         end
         #V = @JavaCall.jimport view5d.View5D
 
