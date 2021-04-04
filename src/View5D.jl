@@ -387,12 +387,6 @@ function import_marker_lists(marker_lists::Vector{Vector{T}}, myviewer=nothing) 
     return
 end
 
-# Hack JavaCall, may not be necessary on versions greater than or equal to 0.8.0
-# Also see multithreading branch of JavaCall
-JavaCall.metaclass(::Type{T}) where T <: AbstractVector = JavaCall.metaclass(Symbol(JavaCall.signature(T)))
-JavaCall.javaclassname(::Type{T}) where T <: AbstractVector = JavaCall.signature(T)
-JavaCall.signature(arg::Type{JavaObject{T}}) where {T <: AbstractVector} = JavaCall.javaclassname(T)
-
 """
     delete_all_marker_lists(myviewer=nothing)
     deletes all the marker lists, which are stored in the viewer
