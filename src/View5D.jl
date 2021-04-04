@@ -383,7 +383,7 @@ function import_marker_lists(marker_lists::Vector{Vector{T}}, myviewer=nothing) 
     GC.@preserve converted begin
         jcall(myviewer, "ImportMarkerLists", Nothing, (jfloatArrArr,), [c[2] for c in converted]);
     end
-    update_panels()
+    update_panels(myviewer)
     return
 end
 
