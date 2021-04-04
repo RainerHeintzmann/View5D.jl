@@ -40,7 +40,16 @@ using JavaCall
 using Colors, ImageCore
 # using JavaShowMethods
 
-const View5D_jar = joinpath(@__DIR__, "View5D", "View5D.jar")
+# In the line below dirname(@__DIR__) is absolutely crucial, otherwise strange errors appear
+# in dependence of how the julia system initializes and whether you run in VScode or
+# an ordinary julia REPL. This was hinted by @mkitti
+# see https://github.com/JuliaInterop/JavaCall.jl/issues/139
+# for details
+# myPath = ["-Djava.class.path=$(joinpath(dirname(@__DIR__), "jars","View5D.jar"))"]
+# print("Initializing JavaCall with callpath: $myPath\n")
+# JavaCall.init(myPath)
+# JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "jars","view5d"))"])
+const View5D_jar = joinpath(dirname(@__DIR__), "jars","View5D.jar")
 
 function __init__()
     # This has to be in __init__ and is invoked by `using View5D`
@@ -79,12 +88,42 @@ end
 """
     set_element_name(new_name, myviewer=nothing; element=0)
     provides a new name to the `element` displayed in the viewer
+
 myviewer: The viewer to apply this to. By default the active viewer is used.
+
 element: The element to rename
 """
 function set_element_name(new_name::String, myviewer=nothing; element=0)
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "setName", Nothing, (jint, JString), element, new_name);
+    update_panels()
+end
+
+"""
+    set_elements_linked(is_linked::Bool,myviewer=nothing)
+    provides a new name to the `element` displayed in the viewer
+
+is_linked: defines whether all elements are linked
+
+myviewer: The viewer to apply this to. By default the active viewer is used.
+"""
+function set_elements_linked(is_linked::Bool, myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    jcall(myviewer, "SetElementsLinked", Nothing, (jboolean), is_linked);
+    update_panels()
+end
+
+"""
+    set_times_linked(is_linked::Bool,myviewer=nothing)
+    provides a new name to the `element` displayed in the viewer
+
+is_linked: defines whether all times are linked
+
+myviewer: The viewer to apply this to. By default the active viewer is used.
+"""
+function set_times_linked(is_linked::Bool, myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    jcall(myviewer, "SetTimessLinked", Nothing, (jboolean), is_linked);
     update_panels()
 end
 
@@ -577,8 +616,12 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false; e
         command = string("AddElement", addCpx)
         myviewer=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
                         myJArr[:],sizeX, sizeY, sizeZ, sizeE, sizeT);
+    elseif mode == "add_time"
+        command = string("AddTime", addCpx)
+        myviewer=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
+                        myJArr[:],sizeX, sizeY, sizeZ, sizeE, sizeT);
     else
-        throw(ArgumentError("unknown mode $mode, choose new, replace or add_element"))
+        throw(ArgumentError("unknown mode $mode, choose new, replace, add_element or add_time"))
     end
 end
 
@@ -591,7 +634,7 @@ function add_phase(data, viewer=nothing)
         view5d(phases, viewer; gamma=1.0, mode="add_element", element=ne+E+1)
         set_value_name("phase", viewer;element=ne+E)
         set_value_unit("deg", viewer;element=ne+E)
-        @show ne+E
+        #@show ne+E
         set_min_max_thresh(0.0, 360.0, viewer;element=ne+E) # to set the color to the correct values
         process_keys("E", viewer) # advance to next element to the just added phase-only channel
         process_keys("cccccccccccc", viewer) # toggle color mode 12x to reach the cyclic colormap
@@ -612,7 +655,9 @@ function expand_size(sz::NTuple, N)
 end
 
 """
-    view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0)
+    view5d(data :: AbstractArray, viewer=nothing; 
+         gamma=nothing, mode="new", element=0, time=0, 
+         show_phase=false, keep_zero=false, title=nothing)
 
 Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
 The viewer is interactive and support a wide range of user actions. 
@@ -628,12 +673,18 @@ gamma: The gamma settings to display this data with. By default the setting is 1
 mode: allows the user to switch between display modes by either 
     `mode="new"` (default): invoking a new View5D.view5d instance to display `data` in
     `mode="replace"`: replacing a single element and time position by `data`. Useful to observe iterative changes.
-    `mode="add_element"`: adds a single (!) element to the viewer. This can be useful for keeping track of a series of iterative images.
-    Note that both modes "replace" and "add_element" only work with a viewer that was previously created via "new".
+    `mode="add_element"`, `mode="add_time"`: adds a single (!) element (or timepoint) to the viewer. This can be useful for keeping track of a series of iterative images.
+    Note that the modes "replace", "add_element" adn "add_time" only work with a viewer that was previously created via "new".
     Via the "viewer" argument, a specific viewer can be selected. By default the last previously created one is active.
     Note also that it is the user's responsibility to NOT change the size and data-type of the data to display in the modes "replace" and "add_element".
 
-element, time: only used for mode "replace" to specify which element and and time position needs to be replaced. 
+element, time: used for mode "replace" to specify which element and and time position needs to be replaced. 
+
+show_phase: determines whether for complex-valued data an extra phase channel is added in multiplicative mode displaying the phase as a value colormap
+
+keep_zero: if true, the brightness display is initialized with a minimum of zero. See also: `set_min_max_thresh()`.
+
+title: if not nothing, sets the initial title of the display window.
 
 #Returns
 An instance (JavaCall.JavaObject) or the viewer, which can be used for further manipulation.
@@ -656,18 +707,8 @@ julia> v3 = view5d(img3);
 ```
 """
 
-function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=false, keep_zero=false)
-    if ! JavaCall.isloaded()
-        # In the line below dirname(@__DIR__) is absolutely crucial, otherwise strange errors appear
-        # in dependence of how the julia system initializes and whether you run in VScode or
-        # an ordinary julia REPL. This was hinted by @mkitti
-        # see https://github.com/JuliaInterop/JavaCall.jl/issues/139
-        # for details
-        # myPath = ["-Djava.class.path=$(joinpath(dirname(@__DIR__), "jars","View5D.jar"))"]
-        # print("Initializing JavaCall with callpath: $myPath\n")
-        # JavaCall.init(myPath)
-        # JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "jars","view5d"))"])
-        
+function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=false, keep_zero=false, title=nothing)
+    if ! JavaCall.isloaded()        
         # Uses classpath set in __init__
         JavaCall.init()
         @info "Initializing JavaCall with classpath" JavaCall.getClassPath()
@@ -704,6 +745,9 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new"
     if keep_zero
         set_min_max_thresh(0.0,maximum(abs.(data)),myviewer)
         process_keys("eE",myviewer)  # to update the display
+    end
+    if !isnothing(title)
+        set_title(title)
     end
     if show_phase && myDataType <: Complex
         add_phase(data, myviewer)
