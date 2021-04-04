@@ -266,7 +266,7 @@ function set_min_max_thresh(Min::Number=0.0, Max::Number=1.0, myviewer=nothing; 
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "setMinMaxThresh", Nothing, (jint, jdouble, jdouble), element, Min, Max);
     update_panels();
-    redraw();
+    repaint();
 end
 
 """
@@ -577,6 +577,35 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false; e
     end
 end
 
+function add_phase(data, viewer=nothing)
+    ne = get_num_elements()
+    sz=expand_size(size(data),5)
+    for E in 0:sz[4]-1
+        phases = 180 .*(angle.(data).+pi)./pi  # in degrees
+        # data.unit.append("deg")  # dirty trick
+        view5d(phases, viewer; gamma=1.0, mode="add_element", element=ne+E+1)
+        set_value_name("phase", viewer;element=ne+E)
+        set_value_unit("deg", viewer;element=ne+E)
+        @show ne+E
+        set_min_max_thresh(0.0, 360.0, viewer;element=ne+E) # to set the color to the correct values
+        process_keys("E", viewer) # advance to next element to the just added phase-only channel
+        process_keys("cccccccccccc", viewer) # toggle color mode 12x to reach the cyclic colormap
+        process_keys("vVe", viewer) # Toggle from additive into multiplicative display
+    end
+    if sz[4]==1
+        process_keys("C", viewer) # Back to Multicolor mode
+    end
+end
+
+
+function expand_dims(x, N)
+    return reshape(x, (size(x)..., ntuple(x -> 1, (N - ndims(x)))...))
+end
+
+function expand_size(sz::NTuple, N)
+    return (sz..., ntuple(x -> 1, (N - length(sz)))...)
+end
+
 """
     view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0)
 
@@ -622,47 +651,54 @@ julia> v3 = view5d(img3);
 ```
 """
 
-function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0)
-        if ! JavaCall.isloaded()
-            # In the line below dirname(@__DIR__) is absolutely crucial, otherwise strange errors appear
-            # in dependence of how the julia system initializes and whether you run in VScode or
-            # an ordinary julia REPL. This was hinted by @mkitti
-            # see https://github.com/JuliaInterop/JavaCall.jl/issues/139
-            # for details
-            myPath = ["-Djava.class.path=$(joinpath(dirname(@__DIR__), "jars","View5D.jar"))"]
-            print("Initializing JavaCall with callpath: $myPath\n")
-            JavaCall.init(myPath)
-            # JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "jars","view5d"))"])
-        end
-        #V = @JavaCall.jimport view5d.View5D
+function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=false, keep_zero=false)
+    if ! JavaCall.isloaded()
+        # In the line below dirname(@__DIR__) is absolutely crucial, otherwise strange errors appear
+        # in dependence of how the julia system initializes and whether you run in VScode or
+        # an ordinary julia REPL. This was hinted by @mkitti
+        # see https://github.com/JuliaInterop/JavaCall.jl/issues/139
+        # for details
+        myPath = ["-Djava.class.path=$(joinpath(dirname(@__DIR__), "jars","View5D.jar"))"]
+        print("Initializing JavaCall with callpath: $myPath\n")
+        JavaCall.init(myPath)
+        # JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "jars","view5d"))"])
+    end
+    #V = @JavaCall.jimport view5d.View5D
 
-        myJArr, myDataType=to_jtype(data)
-        # myJArr=Array{myDataType}(undef, mysize)
-        #myJArr[:].=myArray[:]
-        # @show size(myJArr)
-        # listmethods(V,"Start5DViewer")
-        if myDataType <: Complex
-            jArr = Vector{jfloat}
-            #myviewer=jcall(V, "Start5DViewerC", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myArray,1), size(myArray,2), size(myArray,3), size(myArray,4),size(myArray,5));
-            #@show size(data)
-            #@show size(myJArr)
-            # myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myJArr,1), size(myJArr,2), size(myJArr,3), size(myJArr,4),size(myJArr,5));
-            myviewer = start_viewer(viewer, myJArr,jfloat, mode, true)
-            if isnothing(gamma)
-                gamma=0.3
-            end
-        else
-            #@show size(data)
-            #@show size(myJArr)
-            myviewer = start_viewer(viewer, myJArr,myDataType, mode)
+    myJArr, myDataType=to_jtype(data)
+    # myJArr=Array{myDataType}(undef, mysize)
+    #myJArr[:].=myArray[:]
+    # @show size(myJArr)
+    # listmethods(V,"Start5DViewer")
+    if myDataType <: Complex
+        jArr = Vector{jfloat}
+        #myviewer=jcall(V, "Start5DViewerC", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myArray,1), size(myArray,2), size(myArray,3), size(myArray,4),size(myArray,5));
+        #@show size(data)
+        #@show size(myJArr)
+        # myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myJArr,1), size(myJArr,2), size(myJArr,3), size(myJArr,4),size(myJArr,5));
+        myviewer = start_viewer(viewer, myJArr,jfloat, mode, true)
+        if isnothing(gamma)
+            gamma=0.3
         end
-        #@show typeof(myviewer)
-        #@show myviewer
-        set_active_viewer(myviewer)
-        if !isnothing(gamma)
-            set_gamma(gamma,myviewer, element=element)
-        end
-        process_keys("Ti12", myviewer)   # to initialize the zoom and trigger the display update
+    else
+        #@show size(data)
+        #@show size(myJArr)
+        myviewer = start_viewer(viewer, myJArr,myDataType, mode)
+    end
+    #@show typeof(myviewer)
+    #@show myviewer
+    set_active_viewer(myviewer)
+    # process_keys("Ti12", myviewer)   # to initialize the zoom and trigger the display update
+    if !isnothing(gamma)
+        set_gamma(gamma,myviewer, element=element)
+    end
+    if keep_zero
+        set_min_max_thresh(0.0,maximum(abs.(data)),myviewer)
+        process_keys("eE",myviewer)  # to update the display
+    end
+    if show_phase && myDataType <: Complex
+        add_phase(data, myviewer)
+    end
     return myviewer
 end
 
