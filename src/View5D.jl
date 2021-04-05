@@ -519,12 +519,12 @@ function to_jtype(anArray)
     end
     if isa(ArrayElement, RGB)
         anArray = rawview(channelview(anArray))
-        # anArray = collect(permutedims(expanddims(anArray,5),(3,2,4,1,5)))
-        anArray = collect(permutedims(expanddims(anArray,5),(2,3,4,1,5)))
+        anArray = collect(permutedims(expanddims(anArray,5),(3,2,4,1,5)))
+        #anArray = collect(permutedims(expanddims(anArray,5),(2,3,4,1,5)))
         # @show size(anArray)
     elseif isa(ArrayElement, Gray)
-        # anArray = rawview(channelview(permutedims(expanddims(anArray,5),(2,1,3,4,5))))        
-        anArray = expanddims(rawview(channelview(anArray)),5)
+        anArray = rawview(channelview(permutedims(expanddims(anArray,5),(2,1,3,4,5))))        
+        # anArray = expanddims(rawview(channelview(anArray)),5)
     end
     ArrayElement = anArray[1]
     if isa(ArrayElement, Float32)
@@ -623,6 +623,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false; e
     else
         throw(ArgumentError("unknown mode $mode, choose new, replace, add_element or add_time"))
     end
+    return myviewer
 end
 
 function add_phase(data, viewer=nothing)
@@ -698,7 +699,7 @@ process_keys: allows an easy remote-control of the viewer since almost all of it
 julia> using View5D
 julia> view5d(rand(6,5,4,3,2)) # a viewer with 5D data should popp up
 julia> using TestImages
-julia> img1 = Float32.(testimage("resolution_test_512.tif"));
+julia> img1 = transpose(Float32.(testimage("resolution_test_512.tif")));
 julia> img2 = testimage("mandrill");
 julia> img3 = testimage("simple_3d_ball.tif"); # A 3D dataset
 julia> v1 = view5d(img1);
@@ -744,7 +745,6 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new"
     end
     if keep_zero
         set_min_max_thresh(0.0,maximum(abs.(data)),myviewer)
-        process_keys("eE",myviewer)  # to update the display
     end
     if !isnothing(title)
         set_title(title)
@@ -752,6 +752,8 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new"
     if show_phase && myDataType <: Complex
         add_phase(data, myviewer)
     end
+    update_panels()
+    process_keys("eE") # to force an update also for the gray value image
     return myviewer
 end
 
