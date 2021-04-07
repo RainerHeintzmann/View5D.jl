@@ -64,18 +64,19 @@ expanddims(x, num_of_dims) = reshape(x, (size(x)..., ntuple(x -> 1, (num_of_dims
 
 """
     set_gamma(gamma=1.0, myviewer=nothing; element=0)
-    modifies the display gamma in myviewer
 
-gamma: defines how the data is displayed via shown_value = data .^gamma. 
-        More precisely: clip((data.-low).(high-low)) .^ gamma
+modifies the display `gamma` in myviewer
+# Arguments
 
-myviewer: The viewer to which this gamma should be applied to. By default the active viewer is used.
+* `gamma`: defines how the data is displayed via `shown_value = data .^gamma`. 
+        More precisely: `clip((data.-low).(high-low)) .^ gamma`
+* `myviewer`: The viewer to which this gamma should be applied to. By default the active viewer is used.
+* `element`: to which color channel (element) should this gamma be applied to
 
-element: to which color channel (element) should this gamma be applied to
-
-#Example
-```julia
+# Example
+```jldoctest
 julia> v2 = view5d(rand(Float64,6,5,4,3,1))
+
 julia> set_gamma(0.2,element=1)
 ```
 """
@@ -87,11 +88,11 @@ end
 
 """
     set_element_name(new_name, myviewer=nothing; element=0)
-    provides a new name to the `element` displayed in the viewer
+provides a new name to the `element` displayed in the viewer
 
-myviewer: The viewer to apply this to. By default the active viewer is used.
-
-element: The element to rename
+# Arguments
+* `myviewer`: The viewer to apply this to. By default the active viewer is used.
+* `element`: The element to rename
 """
 function set_element_name(new_name::String, myviewer=nothing; element=0)
     myviewer=get_viewer(myviewer)
@@ -101,11 +102,11 @@ end
 
 """
     set_elements_linked(is_linked::Bool,myviewer=nothing)
-    provides a new name to the `element` displayed in the viewer
+provides a new name to the `element` displayed in the viewer
 
-is_linked: defines whether all elements are linked
-
-myviewer: The viewer to apply this to. By default the active viewer is used.
+# Arguments
+* `is_linked`: defines whether all elements are linked
+* `myviewer`: The viewer to apply this to. By default the active viewer is used.
 """
 function set_elements_linked(is_linked::Bool, myviewer=nothing)
     myviewer=get_viewer(myviewer)
@@ -117,9 +118,9 @@ end
     set_times_linked(is_linked::Bool,myviewer=nothing)
     provides a new name to the `element` displayed in the viewer
 
-is_linked: defines whether all times are linked
-
-myviewer: The viewer to apply this to. By default the active viewer is used.
+# Arguments
+* `is_linked`: defines whether all times are linked
+* `myviewer`: The viewer to apply this to. By default the active viewer is used.
 """
 function set_times_linked(is_linked::Bool, myviewer=nothing)
     myviewer=get_viewer(myviewer)
@@ -129,11 +130,11 @@ end
 
 """
     set_title(title, myviewer=nothing)
-    sets the title of the viewer
+sets the title of the viewer
 
-title: new name of the window of the viewer
-
-myviewer: The viewer to apply this to. By default the active viewer is used.
+# Arguments
+* `title`: new name of the window of the viewer
+* `myviewer`: The viewer to apply this to. By default the active viewer is used.
 """
 function set_title(title::String, myviewer=nothing)
     myviewer=get_viewer(myviewer)
@@ -143,13 +144,12 @@ end
 
 """
     set_display_size(sx::Int,sy::Int, myviewer=nothing)
-    sets the size on the screen, the viewer is occupying
-
-sx: horizontal size in pixels
-
-sy: vertical size in pixels
-
-myviewer: The viewer to apply this to. By default the active viewer is used.
+sets the size on the screen, the viewer is occupying
+    
+# Arguments
+* `sx`: horizontal size in pixels
+* `sy`: vertical size in pixels
+* `myviewer`: the viewer to apply this to. By default the active viewer is used.
 """
 function set_display_size(sx::Int,sy::Int, myviewer=nothing) # ; reinit=true
     myviewer=get_viewer(myviewer)
@@ -161,8 +161,10 @@ end
 
 """
     get_num_elements(myviewer=nothing)
-    gets the number of currently existing elements in the viewer
-myviewer: The viewer to apply this to. By default the active viewer is used.
+gets the number of currently existing elements in the viewer
+
+# Arguments
+* `myviewer`: the viewer to apply this to. By default the active viewer is used.
 """
 function get_num_elements(myviewer=nothing)
     myviewer=get_viewer(myviewer)
@@ -176,22 +178,20 @@ end
         axis_units=["a.u.","a.u.","a.u.","a.u.","a.u."], myviewer=nothing; 
         element=0,time=0)
 
-    Overwrites the units and scaling of all five axes and the value units and scalings.
+overwrites the units and scaling of all five axes and the value units and scalings.
 
-pixelsize: 5D vector of pixel sizes.
-value_scale: The scale of the value axis
-
-value_name: The name of the value axis of this element as a String
-
-value_unit: The unit of the value axis of this element as a String
-
-axes_names: The names of the various (X,Y,Z,E,T) axes as a 5D vector of String
-
-axes_units: The units of the various axes as a 5D vector of String
+# Arguments
+* `pixelsize`: 5D vector of pixel sizes.
+* `value_scale`: the scale of the value axis
+* `value_name`: the name of the value axis of this element as a String
+* `value_unit`: the unit of the value axis of this element as a String
+* `axes_names`: the names of the various (X,Y,Z,E,T) axes as a 5D vector of String
+* `axes_units`: the units of the various axes as a 5D vector of String
 
 #Example
-```julia
+```jldoctest
 julia> v1 = view5d(rand(Int16,6,5,4,2,2))
+
 julia> set_axis_scales_and_units((1,0.02,20,1,2),20,"irradiance","W/cm^2",["position","λ","micro-time","repetition","macro-time"],["mm","µm","ns","#","minutes"],element=0)
 ```
 """
@@ -229,16 +229,15 @@ end
 
 """
     set_value_unit(unit::String="a.u.", myviewer=nothing; element::Int=0)
-    sets the units for the values of a particular element.
+sets the units for the values of a particular element.
 
-unit: a sting with the unit name
-
-myviewer: The viewer to apply this to. By default the active viewer is used.
-
-element:  the element for which to set the unit (count starts with 0)
+# Arguments
+* `unit`: a sting with the unit name
+* `myviewer`: the viewer to apply this to. By default the active viewer is used.
+* `element`:  the element for which to set the unit (count starts with 0)
 
 #see also
-set_axis_scales_and_units, set_value_name
+`set_axis_scales_and_units`, `set_value_name`
 """
 function set_value_unit(unit::String="a.u.", myviewer=nothing; element::Int=0)
     myviewer=get_viewer(myviewer)
@@ -248,16 +247,15 @@ end
 
 """
     set_value_name(name::String="intensity", myviewer=nothing; element::Int=0)
-    sets the name for the values of a particular element.
+sets the name for the values of a particular element.
 
-name: a sting with the name
-
-myviewer: The viewer to apply this to. By default the active viewer is used.
-
-element:  the element for which to set the unit (count starts with 0)
+# Arguments
+* `name`: a sting with the name
+* `myviewer`: the viewer to apply this to. By default the active viewer is used.
+* `element`:  the element for which to set the unit (count starts with 0)
 
 #see also
-set_axis_scales_and_units, set_value_unit
+`set_axis_scales_and_units`, `set_value_unit`
 """
 function set_value_name(name::String="a.u.", myviewer=nothing; element::Int=0)
     myviewer=get_viewer(myviewer)
@@ -268,12 +266,11 @@ end
 
 """
     set_fontsize(fontsize::Int=12, myviewer=nothing)
-    sets the fontsize for the text display in the viewer.
+sets the fontsize for the text display in the viewer.
 
-fontsize: size of the font in pixels (default is 12px)
-
-myviewer: The viewer to apply this to. By default the active viewer is used.
-
+# Arguments
+* `fontsize`: size of the font in pixels (default is 12px)
+* `myviewer`: the viewer to apply this to. By default the active viewer is used.
 """
 function set_fontsize(fontsize::Int=12, myviewer=nothing)
     myviewer=get_viewer(myviewer)
@@ -291,20 +288,19 @@ function invalidate(myviewer=nothing)
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "invalidate", Nothing, ());
 end
+
 """
     set_min_max_thresh(Min::Float64, Max::Float64, myviewer=nothing; element::Int=0)
-    sets the minimum and maximum display ranges for a particular element in the viewer
+sets the minimum and maximum display ranges for a particular element in the viewer
 
-min: the minimum of the display range of this element
-
-max: the maximum of the display range of this element
-
-myviewer: The viewer to apply this to. By default the active viewer is used.
-
-element:  the element for which to set the unit (count starts with 0)
+# Arguments
+* `min`: the minimum of the display range of this element
+* `max`: the maximum of the display range of this element
+* `myviewer`: the viewer to apply this to. By default the active viewer is used.
+* `element`:  the element for which to set the unit (count starts with 0)
 
 #see also
-set_axis_scales_and_units
+`set_axis_scales_and_units`
 """
 function set_min_max_thresh(Min::Number=0.0, Max::Number=1.0, myviewer=nothing; element::Int=0)
     myviewer=get_viewer(myviewer)
@@ -315,8 +311,10 @@ end
 
 """
     get_num_time(myviewer=nothing)
-    gets the number of currently existing time points in the viewer
-myviewer: The viewer to apply this to. By default the active viewer is used.
+gets the number of currently existing time points in the viewer
+
+# Arguments
+* `myviewer`: The viewer to apply this to. By default the active viewer is used.
 """
 function get_num_times(myviewer=nothing)
     myviewer=get_viewer(myviewer)
@@ -325,18 +323,21 @@ end
 
 """
     export_marker_lists(myviewer=nothing)
-    gets all the marker lists stored in the viewer as an array of double arrays.
-myviewer: The viewer to apply this to. By default the active viewer is used
+gets all the marker lists stored in the viewer as an array of double arrays.
+
+# Arguments
+* `myviewer`: the viewer to apply this to. By default the active viewer is used
+
 #Returns
-markers: an array of arrays of double. They are interpreted as follows:
-    length(markers): overall number of markers
-    markers[1]: information on the first marker in the following order
-1:2     ListNr, MarkerNr, 
-3:7     PosX,Y,Z,E,T (all raw subpixel position in pixel coordinates)
-8:9     Integral (no BG sub), Max (no BG sub),
-10:16   RealPosX,Y,Z,E,T,Integral(no BG sub),Max(no BG sub)  (all as above but this time considering the axes units and scales)
-17:21   TagInteger, Parent1, Parent2, Child1, Child2
-22      ListColor  (coded)
+* `markers`: an array of arrays of double. They are interpreted as follows:
+    `length(markers)`: overall number of markers
+    `markers[1]`: information on the first marker in the following order
+* `1:2`     ListNr, MarkerNr, 
+* `3:7`     PosX,Y,Z,E,T (all raw subpixel position in pixel coordinates)
+* `8:9`     Integral (no BG sub), Max (no BG sub),
+* `10:16`   RealPosX,Y,Z,E,T,Integral(no BG sub),Max(no BG sub)  (all as above but this time considering the axes units and scales)
+* `17:21`   TagInteger, Parent1, Parent2, Child1, Child2
+* `22`      ListColor  (coded)
 """
 function export_marker_lists(myviewer=nothing)
     myviewer=get_viewer(myviewer)
@@ -347,16 +348,19 @@ end
 """
     export_markers_string(myviewer=nothing)
     gets all the marker lists stored in the viewer as a string in human readable form.
-myviewer: The viewer to apply this to. By default the active viewer is used
-#Returns
+
+# Arguments
+* `myviewer`: the viewer to apply this to. By default the active viewer is used
+
+# Returns
 a string with the first column indicating the column labels (separated by tab)
 followed by rows, each representing a single marker with entries separated by tabs in the following order:
-1:2     ListNr, MarkerNr, 
-3:7     PosX,Y,Z,E,T (all raw subpixel position in pixel coordinates)
-8:9     Integral (no BG sub), Max (no BG sub),
-10:16   RealPosX,Y,Z,E,T,Integral(no BG sub),Max(no BG sub)  (all as above but this time considering the axes units and scales)
-17:21   TagInteger, Parent1, Parent2, Child1, Child2
-22      ListColor  (coded)
+* `1:2`     ListNr, MarkerNr, 
+* `3:7`     PosX,Y,Z,E,T (all raw subpixel position in pixel coordinates)
+* `8:9`     Integral (no BG sub), Max (no BG sub),
+* `10:16`   RealPosX,Y,Z,E,T,Integral(no BG sub),Max(no BG sub)  (all as above but this time considering the axes units and scales)
+* `17:21`   TagInteger, Parent1, Parent2, Child1, Child2
+* `22`      ListColor  (coded)
 """
 function export_markers_string(myviewer=nothing)
     myviewer=get_viewer(myviewer)
@@ -367,10 +371,14 @@ end
 """
     import_marker_lists(marker_list, myviewer=nothing)
     imports marker lists to be stored and displayed in the viewer.
-myviewer: The viewer to apply this to. By default the active viewer is used
-#Returns
-markers: an array of arrays of double. Please see `export_marker_lists` for a description of the meaning
-#See also
+
+# Arguments
+* `myviewer`: the viewer to apply this to. By default the active viewer is used
+
+# Returns
+* `markers`: an array of arrays of double. Please see `export_marker_lists` for a description of the meaning
+
+# See also
 export_marker_lists(): The data exported in this way can be read in again by the import_marker_lists routine
 """
 function import_marker_lists(marker_lists::Vector{Vector{T}}, myviewer=nothing) where {T}
@@ -395,9 +403,13 @@ JavaCall.signature(arg::Type{JavaObject{T}}) where {T <: AbstractVector} = JavaC
 
 """
     delete_all_marker_lists(myviewer=nothing)
-    deletes all the marker lists, which are stored in the viewer
-#See also:
-export_marker_lists(), import_marker_lists()
+deletes all the marker lists, which are stored in the viewer
+
+# Arguments
+* `myviewer`: the viewer to apply this to. By default the active viewer is used
+
+# See also:
+`export_marker_lists()`, `import_marker_lists()`
 """
 function delete_all_marker_lists(myviewer=nothing)
     myviewer=get_viewer(myviewer)
@@ -409,8 +421,10 @@ end
 
 """
     to_front(myviewer=nothing)
-    moves the viewer on top of other windows
-myviewer: The viewer to apply this to. By default the active viewer is used.
+moves the viewer on top of other windows
+
+# Arguments
+* `myviewer`: the viewer to apply this to. By default the active viewer is used
 """
 function to_front(myviewer=nothing)
     myviewer=get_viewer(myviewer)
@@ -419,8 +433,10 @@ end
 
 """
     hide(myviewer=nothing)
-    hides the viewer. It can be shown again by calling "to_front"
-myviewer: The viewer to apply this to. By default the active viewer is used.
+hides the viewer. It can be shown again by calling "to_front"
+
+# Arguments
+* `myviewer`: the viewer to apply this to. By default the active viewer is used
 """
 function hide_viewer(myviewer=nothing)
     myviewer=get_viewer(myviewer)
@@ -445,10 +461,13 @@ end
 
 """
     process_key_element_window(key::Char, myviewer=nothing)
-    Processes a single key in the element window (bottom right panel of "view5d").
-    For a discription of keys look at the context menu in the viewer. 
-    More information at https://nanoimaging.de/View5D
-key: single key to process inthe element window
+Processes a single key in the element window (bottom right panel of "view5d").
+For a discription of keys look at the context menu in the viewer. 
+More information at https://nanoimaging.de/View5D
+
+# Arguments
+* `key`: single key to process inthe element window
+* `myviewer`: the viewer to apply this to. By default the active viewer is used
 """
 function process_key_element_window(key::Char, myviewer=nothing)
     myviewer=get_viewer(myviewer)
@@ -459,20 +478,19 @@ end
 
 """
     process_keys(KeyList::String, myviewer=nothing; mode="main")
-    Sends key strokes to the viewer. This allows an easy remote-control of the viewer since almost all of its features can be controlled by key-strokes.
-    Note that panel-specific keys (e.g."q": switching to plot-diplay) are currently not supported.
-    For a discription of keys look at the context menu in the viewer. 
-    More information at https://nanoimaging.de/View5D
+Sends key strokes to the viewer. This allows an easy remote-control of the viewer since almost all of its features can be controlled by key-strokes.
+Note that panel-specific keys (e.g."q": switching to plot-diplay) are currently not supported.
+For a discription of keys look at the context menu in the viewer. 
+More information at https://nanoimaging.de/View5D
 
-KeyList: list of keystrokes (as a String) to successively be processed by the viewer. An update is automatically called afterwards.
+# Arguments
+* `KeyList`: list of keystrokes (as a String) to successively be processed by the viewer. An update is automatically called afterwards.
+* `myviewer`: the viewer to which the keys are send.
+* `mode`: determines to which panel the keys are sent to. Currently supported: "main" (default) or "element"
 
-myviewer: the viewer to which the keys are send.
-
-mode: determines to which panel the keys are sent to. Currently supported: "main" (default) or "element"
-
-#see also
-process_key_main_window: processes a single key in the main window
-process_key_element_window: processes a single key in the element window
+# See also
+* `process_key_main_window()`: processes a single key in the main window
+* `process_key_element_window()`: processes a single key in the element window
 """
 function process_keys(KeyList::String, myviewer=nothing; mode="main")
     for k in KeyList
@@ -492,7 +510,7 @@ end
 # myArray= rand(64,64,3,1,1)  # this is the 5D-Array to display
 """
     function to_jtype(something)
-converts an array to 
+converts an array to a jtype array
 """
 function to_jtype(anArray)
     ArrayElement = anArray[1]
@@ -664,38 +682,32 @@ Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
 The viewer is interactive and support a wide range of user actions. 
 For details see https://nanoimaging.de/View5D
 
-data: the array data to display. A large range of datatypes (including Complex32 and UInt16) is supported.
-
-viewer: of interest only for modes "replace" and "add_element". This viewer instance (as returned by previous calls) is used for display.
+# Arguments
+* `data`: the array data to display. A large range of datatypes (including Complex32 and UInt16) is supported.
+* `viewer`: of interest only for modes "replace" and "add_element". This viewer instance (as returned by previous calls) is used for display.
         Note that this module keeps track of previously invoked viewers. By default the "viewers["active"]" is used.
-
-gamma: The gamma settings to display this data with. By default the setting is 1.0 for real-valued data and 0.3 for complex valued data.
-
-mode: allows the user to switch between display modes by either 
+* `gamma`: The gamma settings to display this data with. By default the setting is 1.0 for real-valued data and 0.3 for complex valued data.
+* `mode`: allows the user to switch between display modes by either 
     `mode="new"` (default): invoking a new View5D.view5d instance to display `data` in
     `mode="replace"`: replacing a single element and time position by `data`. Useful to observe iterative changes.
     `mode="add_element"`, `mode="add_time"`: adds a single (!) element (or timepoint) to the viewer. This can be useful for keeping track of a series of iterative images.
     Note that the modes "replace", "add_element" adn "add_time" only work with a viewer that was previously created via "new".
     Via the "viewer" argument, a specific viewer can be selected. By default the last previously created one is active.
     Note also that it is the user's responsibility to NOT change the size and data-type of the data to display in the modes "replace" and "add_element".
+* `element`, `time`: used for mode "replace" to specify which element and and time position needs to be replaced. 
+* `show_phase`: determines whether for complex-valued data an extra phase channel is added in multiplicative mode displaying the phase as a value colormap
+* `keep_zero`: if true, the brightness display is initialized with a minimum of zero. See also: `set_min_max_thresh()`.
+* `title`: if not nothing, sets the initial title of the display window.
 
-element, time: used for mode "replace" to specify which element and and time position needs to be replaced. 
-
-show_phase: determines whether for complex-valued data an extra phase channel is added in multiplicative mode displaying the phase as a value colormap
-
-keep_zero: if true, the brightness display is initialized with a minimum of zero. See also: `set_min_max_thresh()`.
-
-title: if not nothing, sets the initial title of the display window.
-
-#Returns
+# Returns
 An instance (JavaCall.JavaObject) or the viewer, which can be used for further manipulation.
 
-#See also
-set_gamma: changes the gamma value to display the data (useful for enhancing low signals)
-process_keys: allows an easy remote-control of the viewer since almost all of its features can be controlled by key-strokes.
+# See also
+* `set_gamma()`: changes the gamma value to display the data (useful for enhancing low signals)
+* `process_keys()`: allows an easy remote-control of the viewer since almost all of its features can be controlled by key-strokes.
 
 # Example
-```julia-repl
+```jldoctest
 julia> using View5D
 julia> view5d(rand(6,5,4,3,2)) # a viewer with 5D data should popp up
 julia> using TestImages
@@ -707,7 +719,6 @@ julia> v2 = view5d(img2);
 julia> v3 = view5d(img3);
 ```
 """
-
 function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=false, keep_zero=false, title=nothing)
     if ! JavaCall.isloaded()        
         # Uses classpath set in __init__
