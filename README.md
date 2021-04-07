@@ -12,6 +12,27 @@ julia> ] add https://github.com/RainerHeintzmann/View5D.jl
 
 # Quick Overview
 
+## Quick Examples
+```julia
+  julia> using View5D
+  
+  julia> view5d(rand(6,5,4,3,2)) # a viewer with 5D data should popp up
+  
+  julia> using TestImages
+  
+  julia> img1 = transpose(Float32.(testimage("resolution_test_512.tif")));
+  
+  julia> img2 = testimage("mandrill");
+  
+  julia> img3 = testimage("simple_3d_ball.tif"); # A 3D dataset
+  
+  julia> v1 = view5d(img1);
+  
+  julia> v2 = view5d(img2);
+  
+  julia> v3 = view5d(img3);
+```
+
 ## Supported Datatypes
 The interaction to julia is currently at a basic level of invoking the viewer using existing data. However, it already supports a wide range of data formats: `Float32`, `Float64`, `UInt8`, `Int8`, `UInt16`, `Int16`, `UInt32`, `Int32`, `Int`.
 `Complex32`, `RGB` and `Gray`
