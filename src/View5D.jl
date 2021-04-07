@@ -37,6 +37,7 @@ export export_marker_lists, import_marker_lists, delete_all_marker_lists, export
 #export init_layout, invalidate 
 
 using JavaCall
+using Pkg.Artifacts
 using Colors, ImageCore
 # using JavaShowMethods
 
@@ -49,7 +50,10 @@ using Colors, ImageCore
 # print("Initializing JavaCall with callpath: $myPath\n")
 # JavaCall.init(myPath)
 # JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "jars","view5d"))"])
-const View5D_jar = joinpath(dirname(@__DIR__), "jars","View5D.jar")
+
+# const View5D_jar = joinpath(dirname(@__DIR__), "jars","View5D.jar")
+rootpath = artifact"View5D-jar"
+const View5D_jar = joinpath(rootpath, "View5D_-2.3.1.jar")
 
 function __init__()
     # This has to be in __init__ and is invoked by `using View5D`
