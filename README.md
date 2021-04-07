@@ -27,6 +27,9 @@ The interaction to julia is currently at a basic level of invoking the viewer us
 Display of `Complex`-valued data can be toggled between `magnitude`, `phase`, `real` and `imaginary` part.  A complex-valued array by default switches the viewer to a `gamma` of 0.3 easing the inspection of Fourier-transformed data. However, gamma is adjustable interactively as well as when invoking the viewer.
 
 # Background
+See this YouTube Video for more details:
+[![IMAGE ALT TEXT](docs/src/assets/youtube.png)](https://www.youtube.com/watch?v=fqa82MmJlAA&list=PL3LueK3ij6Wm2VjaaibNdulxFvA6VhVRv)
+
 
 The Java viewer [View5D](https://nanoimaging.de/View5D) has been integrated into Julia with the help of [JavaCall.jl](https://github.com/JuliaInterop/JavaCall.jl).  Currently the viewer has its full Java functionality which includes displaying and interacting with 5D data. Generating up to three-dimensional histograms and interacting with them to select regions of interest in the 3D histogram but shown as a selection in the data. It allows selection of a gate `element` where thresholds can be applied to which have an effect on statistical evaluation (mean, max, min) in other `element`s if the `gate` is activated.
 It further supports multiplicative overlay of colors. This feature is useful when processed data (e.g. local orientation information or polarization direction or ratios) needs to be presented along with brightness data. By choosing a gray-valued and a  constant brightness value-only (HSV) colormap for brightness and orientation data respectively, in multiplicative overlay mode a result is obtained that looks like the orientation information is staining the brightness. These results look often much nicer compared to gating-based display based on a brightness-gate, which is also supported.
