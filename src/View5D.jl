@@ -302,7 +302,7 @@ sets the minimum and maximum display ranges for a particular element in the view
 #see also
 `set_axis_scales_and_units`
 """
-function set_min_max_thresh(Min::Number=0.0, Max::Number=1.0, myviewer=nothing; element::Int=0)
+function set_min_max_thresh(Min::Number=0.0, Max::Number=1.0, myviewer=nothing; element=0)
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "setMinMaxThresh", Nothing, (jint, jdouble, jdouble), element, Min, Max);
     update_panels();
@@ -657,6 +657,7 @@ function add_phase(data, viewer=nothing)
         set_min_max_thresh(0.0, 360.0, viewer;element=ne+E) # to set the color to the correct values
         process_keys("E", viewer) # advance to next element to the just added phase-only channel
         process_keys("cccccccccccc", viewer) # toggle color mode 12x to reach the cyclic colormap
+        process_keys("56", viewer) # for some reason this avoids dark pixels in the cyclic color display.
         process_keys("vVe", viewer) # Toggle from additive into multiplicative display
     end
     if sz[4]==1
@@ -717,6 +718,8 @@ julia> img3 = testimage("simple_3d_ball.tif"); # A 3D dataset
 julia> v1 = view5d(img1);
 julia> v2 = view5d(img2);
 julia> v3 = view5d(img3);
+julia> using IndexFunArrays
+julia> view5d(exp_ikx((100,100),shift_by=(2.3,5.77)).+0, show_phase=true)  # shows a complex-valued phase ramp with cyclic colormap
 ```
 """
 function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=false, keep_zero=false, title=nothing)
@@ -739,6 +742,7 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new"
         #@show size(myJArr)
         # myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myJArr,1), size(myJArr,2), size(myJArr,3), size(myJArr,4),size(myJArr,5));
         myviewer = start_viewer(viewer, myJArr,jfloat, mode, true)
+        set_min_max_thresh(0.0, maximum(abs.(myJArr)), myviewer, element = get_num_elements(myviewer)-1)
         if isnothing(gamma)
             gamma=0.3
         end
