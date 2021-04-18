@@ -26,7 +26,7 @@ Future versions will support features such as
 
 """
 module View5D
-export view5d, vv, ve, get_active_viewer
+export view5d, vv, ve, vep, get_active_viewer
 export process_key_element_window, process_key_main_window, process_keys
 export set_axis_scales_and_units, set_value_unit, set_value_name
 export repaint, update_panels, to_front, hide_viewer, set_fontsize
@@ -309,8 +309,8 @@ sets the minimum and maximum display ranges for a particular element in the view
 function set_min_max_thresh(Min::Number=0.0, Max::Number=1.0, myviewer=nothing; element=0)
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "setMinMaxThresh", Nothing, (jint, jdouble, jdouble), element, Min, Max);
-    update_panels();
-    repaint();
+    update_panels(myviewer);
+    repaint(myviewer);
 end
 
 """
@@ -788,9 +788,25 @@ end
 Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
 The viewer is interactive and support a wide range of user actions. 
 For details see https://nanoimaging.de/View5D
-This is just a shorthand (with `show_phase=true`) for the function `view5d`. See `view5d` for arguments description.
+This is just a shorthand for the function `view5d`. See `view5d` for arguments description.
+See documentation of `view5d` for explanation of the parameters.
 """
-function vv(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=true, keep_zero=false, title=nothing)
+function vv(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=false, keep_zero=false, title=nothing)
+    view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, title=title)
+end
+
+"""
+    vp(data :: AbstractArray, viewer=nothing; 
+         gamma=nothing, mode="new", element=0, time=0, 
+         show_phase=true, keep_zero=false, title=nothing)
+
+Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
+The viewer is interactive and support a wide range of user actions. 
+For details see https://nanoimaging.de/View5D
+This is just a shorthand (with `show_phase=true`) for the function `view5d`. See `view5d` for arguments description.
+See documentation of `view5d` for explanation of the parameters.
+"""
+function vp(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=true, keep_zero=false, title=nothing)
     view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, title=title)
 end
 
@@ -802,15 +818,30 @@ end
 Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
 The viewer is interactive and support a wide range of user actions. 
 For details see https://nanoimaging.de/View5D
-This is just a shorthand (with `show_phase=true` and adding an element to an existing viewer) for the function `view5d`. See `view5d` for arguments description.
+This is just a shorthand adding an element to an existing viewer (mode=`add_element`) for the function `view5d`. See `view5d` for arguments description.
+See documentation of `view5d` for explanation of the parameters.
 """
-function ve(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=true, keep_zero=false, title=nothing)
+function ve(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, title=nothing)
     viewer = get_active_viewer();
     if isnothing(viewer)
         vv(data, viewer; gamma=gamma, mode="new", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, title=title)
     else
         vv(data, viewer; gamma=gamma, mode="add_element", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, title=title)
     end
+end
+"""
+    vep(data :: AbstractArray, viewer=nothing; 
+         gamma=nothing, mode="new", element=0, time=0, 
+         show_phase=true, keep_zero=false, title=nothing)
+
+Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
+The viewer is interactive and support a wide range of user actions. 
+For details see https://nanoimaging.de/View5D
+This is just a shorthand (with `show_phase=true`) adding an element to an existing viewer (mode=`add_element`) for the function `view5d`. See `view5d` for arguments description.
+See documentation of `view5d` for explanation of the parameters.
+"""
+function vep(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=true, keep_zero=false, title=nothing)
+    ve(data, viewer; gamma=gamma, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, title=title)
 end
 
 end # module
