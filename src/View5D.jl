@@ -26,7 +26,7 @@ Future versions will support features such as
 
 """
 module View5D
-export view5d
+export view5d, vv, ve, get_active_viewer
 export process_key_element_window, process_key_main_window, process_keys
 export set_axis_scales_and_units, set_value_unit, set_value_name
 export repaint, update_panels, to_front, hide_viewer, set_fontsize
@@ -659,6 +659,9 @@ function add_phase(data, viewer=nothing)
         set_value_unit("deg", viewer;element=ne+E)
         #@show ne+E
         set_min_max_thresh(0.0, 360.0, viewer;element=ne+E) # to set the color to the correct values
+        #update_panels()
+        #process_keys("eE") # to normalize this element and force an update also for the gray value image
+        #to_front()    
         process_keys("E", viewer) # advance to next element to the just added phase-only channel
         process_keys("cccccccccccc", viewer) # toggle color mode 12x to reach the cyclic colormap
         process_keys("56", viewer) # for some reason this avoids dark pixels in the cyclic color display.
@@ -734,7 +737,7 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new"
     end
     #V = @JavaCall.jimport view5d.View5D
 
-    myJArr, myDataType=to_jtype(data)
+    myJArr, myDataType=to_jtype(collect(data))
     # myJArr=Array{myDataType}(undef, mysize)
     #myJArr[:].=myArray[:]
     # @show size(myJArr)
@@ -772,8 +775,42 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new"
         add_phase(data, myviewer)
     end
     update_panels()
-    process_keys("eE") # to force an update also for the gray value image
+    process_keys("eE") # to normalize this element and force an update also for the gray value image
+    to_front()
     return myviewer
+end
+
+"""
+    vv(data :: AbstractArray, viewer=nothing; 
+         gamma=nothing, mode="new", element=0, time=0, 
+         show_phase=true, keep_zero=false, title=nothing)
+
+Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
+The viewer is interactive and support a wide range of user actions. 
+For details see https://nanoimaging.de/View5D
+This is just a shorthand (with `show_phase=true`) for the function `view5d`. See `view5d` for arguments description.
+"""
+function vv(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=true, keep_zero=false, title=nothing)
+    view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, title=title)
+end
+
+"""
+    ve(data :: AbstractArray, viewer=nothing; 
+         gamma=nothing, mode="new", element=0, time=0, 
+         show_phase=true, keep_zero=false, title=nothing)
+
+Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
+The viewer is interactive and support a wide range of user actions. 
+For details see https://nanoimaging.de/View5D
+This is just a shorthand (with `show_phase=true` and adding an element to an existing viewer) for the function `view5d`. See `view5d` for arguments description.
+"""
+function ve(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=true, keep_zero=false, title=nothing)
+    viewer = get_active_viewer();
+    if isnothing(viewer)
+        vv(data, viewer; gamma=gamma, mode="new", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, title=title)
+    else
+        vv(data, viewer; gamma=gamma, mode="add_element", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, title=title)
+    end
 end
 
 end # module
