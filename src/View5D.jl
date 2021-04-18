@@ -26,7 +26,7 @@ Future versions will support features such as
 
 """
 module View5D
-export view5d, vv, ve, vep, get_active_viewer
+export view5d, vv, ve, vp, vep, get_active_viewer
 export process_key_element_window, process_key_main_window, process_keys
 export set_axis_scales_and_units, set_value_unit, set_value_name
 export repaint, update_panels, to_front, hide_viewer, set_fontsize
