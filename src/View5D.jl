@@ -56,8 +56,8 @@ using Colors, ImageCore
 # const View5D_jar = joinpath(dirname(@__DIR__), "jars","View5D.jar")
 
 # This is the proper way to do this via artifacts:
-# @show rootpath = artifact"View5D-jar"
-@show rootpath = "C:\\Users\\pi96doc\\Documents\\Programming\\Java\\View5D"
+rootpath = artifact"View5D-jar"
+# @show rootpath = "C:\\Users\\pi96doc\\Documents\\Programming\\Java\\View5D"
 const View5D_jar = joinpath(rootpath, "View5D_v2.3.1.jar")
 # my personal development version
 # const View5D_jar = joinpath(rootpath, "View5D_v2.jar")
