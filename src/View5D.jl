@@ -26,11 +26,13 @@ Future versions will support features such as
 
 """
 module View5D
-export view5d, vv, ve, vp, vep, get_active_viewer
+export view5d, vv, vp, vt, vtp, ve, vep, get_active_viewer
+export @vv, @ve, @vp, @vep, @vt, @vtp
 export process_key_element_window, process_key_main_window, process_keys
 export set_axis_scales_and_units, set_value_unit, set_value_name
 export repaint, update_panels, to_front, hide_viewer, set_fontsize
 export set_gamma, set_min_max_thresh
+export set_element, set_time
 export set_element_name, get_num_elements, get_num_times, set_title
 export set_display_size
 export export_marker_lists, import_marker_lists, delete_all_marker_lists, export_markers_string
@@ -52,8 +54,13 @@ using Colors, ImageCore
 # JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "jars","view5d"))"])
 
 # const View5D_jar = joinpath(dirname(@__DIR__), "jars","View5D.jar")
-rootpath = artifact"View5D-jar"
-const View5D_jar = joinpath(rootpath, "View5D_-2.3.1.jar")
+
+# This is the proper way to do this via artifacts:
+# @show rootpath = artifact"View5D-jar"
+@show rootpath = "C:\\Users\\pi96doc\\Documents\\Programming\\Java\\View5D"
+const View5D_jar = joinpath(rootpath, "View5D_v2.3.1.jar")
+# my personal development version
+# const View5D_jar = joinpath(rootpath, "View5D_v2.jar")
 
 function __init__()
     # This has to be in __init__ and is invoked by `using View5D`
@@ -87,21 +94,68 @@ julia> set_gamma(0.2,element=1)
 function set_gamma(gamma=1.0, myviewer=nothing; element=0)
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "SetGamma", Nothing, (jint, jdouble), element, gamma);
-    update_panels()
+    update_panels(myviewer)
 end
 
 """
-    set_element_name(new_name, myviewer=nothing; element=0)
+    set_time(mytime=-1, myviewer=nothing)
+
+sets the display position to mytime. A negative value means last timepoint
+# Arguments
+
+* `mytime`: The timepoint to set the viewer to
+* `myviewer`: The viewer to which this function applies to. By default the active viewer is used.
+
+# Example
+```jldoctest
+julia> v2 = view5d(rand(Float64,6,5,4,3,2))
+
+julia> set_time(0) # return to the first time point
+```
+"""
+function set_time(mytime=-1, myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    jcall(myviewer, "setTime", Nothing, (jint,), mytime);
+    update_panels(myviewer)
+    repaint(myviewer)
+end
+
+"""
+    set_element(myelement=-1, myviewer=nothing)
+
+sets the display position to mytime. A negative value means last timepoint
+# Arguments
+
+* `myelement`: The element position (color) to which the viewer display position is set to
+* `myviewer`: The viewer to which this function applies to. By default the active viewer is used.
+
+# Example
+```jldoctest
+julia> v2 = view5d(rand(Float64,6,5,4,3,1))
+
+julia> set_element(0) # return to the first color channel
+```
+"""
+function set_element(myelement=-1, myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    jcall(myviewer, "setElement", Nothing, (jint,), myelement);
+    update_panels(myviewer)
+    repaint(myviewer)
+end
+
+"""
+    set_element_name(element,new_name, myviewer=nothing)
 provides a new name to the `element` displayed in the viewer
 
 # Arguments
-* `myviewer`: The viewer to apply this to. By default the active viewer is used.
 * `element`: The element to rename
+* `new_name`: The new name for the element
+* `myviewer`: The viewer to apply this to. By default the active viewer is used.
 """
-function set_element_name(new_name::String, myviewer=nothing; element=0)
+function set_element_name(element, new_name::String, myviewer=nothing)
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "setName", Nothing, (jint, JString), element, new_name);
-    update_panels()
+    update_panels(myviewer)
 end
 
 """
@@ -115,7 +169,7 @@ provides a new name to the `element` displayed in the viewer
 function set_elements_linked(is_linked::Bool, myviewer=nothing)
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "SetElementsLinked", Nothing, (jboolean), is_linked);
-    update_panels()
+    update_panels(myviewer)
 end
 
 """
@@ -129,7 +183,7 @@ end
 function set_times_linked(is_linked::Bool, myviewer=nothing)
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "SetTimessLinked", Nothing, (jboolean), is_linked);
-    update_panels()
+    update_panels(myviewer)
 end
 
 """
@@ -143,7 +197,7 @@ sets the title of the viewer
 function set_title(title::String, myviewer=nothing)
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "NameWindow", Nothing, (JString,), title);
-    update_panels()
+    update_panels(myviewer)
 end
 
 """
@@ -227,8 +281,8 @@ function set_axis_scales_and_units(pixelsize=(1.0,1.0,1.0,1.0,1.0),
             JString,jStringArr,JString,jStringArr),
             element,time, value_scale, pixelsize..., 0,0,0,0,0,0,
             value_name, axes_names, value_unit, axes_units);
-    update_panels();
-    repaint();
+    update_panels(myviewer);
+    repaint(myviewer);
 end
 
 """
@@ -264,8 +318,8 @@ sets the name for the values of a particular element.
 function set_value_name(name::String="a.u.", myviewer=nothing; element::Int=0)
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "NameElement", Nothing, (jint, JString), element, name);
-    update_panels()
-    repaint()
+    update_panels(myviewer)
+    repaint(myviewer)
 end
 
 """
@@ -284,8 +338,8 @@ end
 #= function init_layout(myviewer=nothing; element::Int=0)
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "initLayout", Nothing, (jint,), element);
-    update_panels()
-    repaint()
+    update_panels(myviewer)
+    repaint(myviewer)
 end
  =#
 function invalidate(myviewer=nothing)
@@ -395,7 +449,7 @@ function import_marker_lists(marker_lists::Vector{Vector{T}}, myviewer=nothing) 
     GC.@preserve converted begin
         jcall(myviewer, "ImportMarkerLists", Nothing, (jfloatArrArr,), [c[2] for c in converted]);
     end
-    update_panels()
+    update_panels(myviewer)
     return
 end
 
@@ -418,7 +472,7 @@ deletes all the marker lists, which are stored in the viewer
 function delete_all_marker_lists(myviewer=nothing)
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "DeleteAllMarkerLists", Nothing, ());
-    update_panels()
+    update_panels(myviewer)
     return
 end
 
@@ -607,13 +661,14 @@ function get_viewer(viewer=nothing)
     end
 end
 
-function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false; element=0, mytime=0)
+function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false; 
+         element=0, mytime=0, name=nothing)
     jArr = Vector{jtype}
     #@show size(myJArr)
     sizeX,sizeY,sizeZ,sizeE,sizeT = size(myJArr)
     addCpx = ""
     if isCpx
-        sizeX /= 2
+        sizeX = Int(sizeX/2)
         addCpx = "C"
     end
 
@@ -628,7 +683,12 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false; e
     if mode == "new"
         command = string("Start5DViewer", addCpx)
         myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint),
-                        myJArr[:], sizeX, sizeY, sizeZ, sizeE, sizeT);            
+                        myJArr[:], sizeX, sizeY, sizeZ, sizeE, sizeT);
+        if !isnothing(name)
+            for E in 0:get_num_elements(myviewer)-1
+                set_element_name(E, name, myviewer)
+            end
+        end            
     elseif mode == "replace"
         command = string("ReplaceData", addCpx)
         #@show viewer 
@@ -636,33 +696,56 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false; e
         myviewer = viewer
     elseif mode == "add_element"
         command = string("AddElement", addCpx)
-        myviewer=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
-                        myJArr[:],sizeX, sizeY, sizeZ, sizeE, sizeT);
+        size3d = sizeX*sizeY*sizeZ
+        for e in 0:sizeE-1
+            myviewer=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
+                            myJArr[e*size3d+1:end],sizeX, sizeY, sizeZ, sizeE, sizeT); 
+            set_element(-1) # go to the last element
+            process_keys("t",myviewer)   
+            if !isnothing(name)
+                E = get_num_elements()-1
+                set_element_name(E, name, myviewer)
+            end
+        end
     elseif mode == "add_time"
         command = string("AddTime", addCpx)
-        myviewer=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
-                        myJArr[:],sizeX, sizeY, sizeZ, sizeE, sizeT);
+        size4d = sizeX*sizeY*sizeZ*sizeE
+        for t in 0:sizeT-1
+            myviewer=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
+                            myJArr[t*size4d+1:end],sizeX, sizeY, sizeZ, sizeE, sizeT);
+            set_time(-1) # go to the last element
+            E = get_num_elements()-1
+            for e in 0:E
+                set_element(e) # go to the this element
+                process_keys("t",myviewer)
+                if !isnothing(name)
+                    set_element_name(e, name, myviewer)
+                end
+            end
+        end
     else
         throw(ArgumentError("unknown mode $mode, choose new, replace, add_element or add_time"))
     end
     return myviewer
 end
 
-function add_phase(data, viewer=nothing)
+function add_phase(data, viewer=nothing; name=nothing)
     ne = get_num_elements()
     sz=expand_size(size(data),5)
     for E in 0:sz[4]-1
         phases = 180 .*(angle.(data).+pi)./pi  # in degrees
         # data.unit.append("deg")  # dirty trick
-        view5d(phases, viewer; gamma=1.0, mode="add_element", element=ne+E+1)
-        set_value_name("phase", viewer;element=ne+E)
+        view5d(phases, viewer; gamma=1.0, mode="add_element", element=ne+E+1, name=name)
+        set_value_name(name*"_phase", viewer;element=ne+E)
         set_value_unit("deg", viewer;element=ne+E)
         #@show ne+E
         set_min_max_thresh(0.0, 360.0, viewer;element=ne+E) # to set the color to the correct values
         #update_panels()
         #process_keys("eE") # to normalize this element and force an update also for the gray value image
         #to_front()    
-        process_keys("E", viewer) # advance to next element to the just added phase-only channel
+
+        # process_keys("E", viewer) # advance to next element to the just added phase-only channel
+        set_element(-1, viewer)
         process_keys("cccccccccccc", viewer) # toggle color mode 12x to reach the cyclic colormap
         process_keys("56", viewer) # for some reason this avoids dark pixels in the cyclic color display.
         process_keys("vVe", viewer) # Toggle from additive into multiplicative display
@@ -684,7 +767,7 @@ end
 """
     view5d(data :: AbstractArray, viewer=nothing; 
          gamma=nothing, mode="new", element=0, time=0, 
-         show_phase=false, keep_zero=false, title=nothing)
+         show_phase=false, keep_zero=false, name=nothing, title=nothing)
 
 Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
 The viewer is interactive and support a wide range of user actions. 
@@ -705,6 +788,7 @@ For details see https://nanoimaging.de/View5D
 * `element`, `time`: used for mode "replace" to specify which element and and time position needs to be replaced. 
 * `show_phase`: determines whether for complex-valued data an extra phase channel is added in multiplicative mode displaying the phase as a value colormap
 * `keep_zero`: if true, the brightness display is initialized with a minimum of zero. See also: `set_min_max_thresh()`.
+* `name`: if not nothing, sets the name of the added data. The can be useful debug information.
 * `title`: if not nothing, sets the initial title of the display window.
 
 # Returns
@@ -729,7 +813,7 @@ julia> using IndexFunArrays
 julia> view5d(exp_ikx((100,100),shift_by=(2.3,5.77)).+0, show_phase=true)  # shows a complex-valued phase ramp with cyclic colormap
 ```
 """
-function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=false, keep_zero=false, title=nothing)
+function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
     if ! JavaCall.isloaded()        
         # Uses classpath set in __init__
         JavaCall.init()
@@ -748,7 +832,7 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new"
         #@show size(data)
         #@show size(myJArr)
         # myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint), myJArr[:], size(myJArr,1), size(myJArr,2), size(myJArr,3), size(myJArr,4),size(myJArr,5));
-        myviewer = start_viewer(viewer, myJArr,jfloat, mode, true)
+        myviewer = start_viewer(viewer, myJArr,jfloat, mode, true, name=name)
         set_min_max_thresh(0.0, maximum(abs.(myJArr)), myviewer, element = get_num_elements(myviewer)-1)
         if isnothing(gamma)
             gamma=0.3
@@ -756,27 +840,27 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new"
     else
         #@show size(data)
         #@show size(myJArr)
-        myviewer = start_viewer(viewer, myJArr,myDataType, mode)
+        myviewer = start_viewer(viewer, myJArr,myDataType, mode, name=name)
     end
     #@show typeof(myviewer)
     #@show myviewer
     set_active_viewer(myviewer)
     # process_keys("Ti12", myviewer)   # to initialize the zoom and trigger the display update
     if !isnothing(gamma)
-        set_gamma(gamma,myviewer, element=element)
+        set_gamma(gamma,myviewer, element=get_num_elements()-1)
     end
     if keep_zero
-        set_min_max_thresh(0.0,maximum(abs.(data)),myviewer)
+        set_min_max_thresh(0.0,maximum(abs.(data)),myviewer, element=get_num_elements()-1)
     end
     if !isnothing(title)
         set_title(title)
     end
     if show_phase && myDataType <: Complex
-        add_phase(data, myviewer)
+        add_phase(data, myviewer, name=name)
     end
-    update_panels()
+    update_panels(myviewer)
     process_keys("eE") # to normalize this element and force an update also for the gray value image
-    to_front()
+    to_front(myviewer)
     return myviewer
 end
 
@@ -791,8 +875,86 @@ For details see https://nanoimaging.de/View5D
 This is just a shorthand for the function `view5d`. See `view5d` for arguments description.
 See documentation of `view5d` for explanation of the parameters.
 """
-function vv(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=false, keep_zero=false, title=nothing)
-    view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, title=title)
+function vv(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
+    view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+end
+
+
+
+function display_array(arr::AbstractArray{N,T}, name, disp=vv) where {N,T}
+    disp(arr,name=name)
+    return "in view5d"
+end
+function display_array(ex, name, disp=vv) where {N,T}
+    repr(begin local value = ex end)
+end
+
+using Base
+macro vv(exs...)
+    blk = Expr(:block)
+    for ex in exs
+        varname = sprint(Base.show_unquoted, ex)
+        name = :(println($(esc(varname))*" = ",
+        begin local value=display_array($(esc(ex)),$(esc(varname)),vv) end))
+        push!(blk.args, name)
+    end
+    isempty(exs) || # push!(blk.args, :value)
+    return blk
+end
+macro vep(exs...)
+    blk = Expr(:block)
+    for ex in exs
+        varname = sprint(Base.show_unquoted, ex)
+        name = :(println($(esc(varname))*" = ",
+        begin local value=display_array($(esc(ex)),$(esc(varname)),vep) end))
+        push!(blk.args, name)
+    end
+    isempty(exs) || # push!(blk.args, :value)
+    return blk
+end
+macro vtp(exs...)
+    blk = Expr(:block)
+    for ex in exs
+        varname = sprint(Base.show_unquoted, ex)
+        name = :(println($(esc(varname))*" = ",
+        begin local value=display_array($(esc(ex)),$(esc(varname)),vtp) end))
+        push!(blk.args, name)
+    end
+    isempty(exs) || # push!(blk.args, :value)
+    return blk
+end
+macro vp(exs...)
+    blk = Expr(:block)
+    for ex in exs
+        varname = sprint(Base.show_unquoted, ex)
+        name = :(println($(esc(varname))*" = ",
+        begin local value=display_array($(esc(ex)),$(esc(varname)),vp) end))
+        push!(blk.args, name)
+    end
+    isempty(exs) || # push!(blk.args, :value)
+    return blk
+end
+macro ve(exs...)
+    blk = Expr(:block)
+    for ex in exs
+        varname = sprint(Base.show_unquoted, ex)
+        name = :(println($(esc(varname))*" = ",
+        begin local value=display_array($(esc(ex)),$(esc(varname)),ve) end))
+        push!(blk.args, name)
+    end
+    isempty(exs) || # push!(blk.args, :value)
+    return blk
+end
+macro vt(exs...)
+    blk = Expr(:block)
+    for ex in exs
+        varname = sprint(Base.show_unquoted, ex)
+        name = :(println($(esc(varname))*" = ",
+        begin local value=display_array($(esc(ex)),$(esc(varname)),vt) end))
+        push!(blk.args, name)
+    end
+    isempty(exs) || # push!(blk.args, :value)
+    return blk
 end
 
 """
@@ -806,13 +968,13 @@ For details see https://nanoimaging.de/View5D
 This is just a shorthand (with `show_phase=true`) for the function `view5d`. See `view5d` for arguments description.
 See documentation of `view5d` for explanation of the parameters.
 """
-function vp(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=true, keep_zero=false, title=nothing)
-    view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, title=title)
+function vp(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
+    view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
 """
     ve(data :: AbstractArray, viewer=nothing; 
-         gamma=nothing, mode="new", element=0, time=0, 
+         gamma=nothing, element=0, time=0, 
          show_phase=true, keep_zero=false, title=nothing)
 
 Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
@@ -821,17 +983,38 @@ For details see https://nanoimaging.de/View5D
 This is just a shorthand adding an element to an existing viewer (mode=`add_element`) for the function `view5d`. See `view5d` for arguments description.
 See documentation of `view5d` for explanation of the parameters.
 """
-function ve(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, title=nothing)
+function ve(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
     viewer = get_active_viewer();
     if isnothing(viewer)
-        vv(data, viewer; gamma=gamma, mode="new", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, title=title)
+        vv(data, viewer; gamma=gamma, mode="new", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     else
-        vv(data, viewer; gamma=gamma, mode="add_element", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, title=title)
+        vv(data, viewer; gamma=gamma, mode="add_element", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     end
 end
+
+"""
+    vt(data :: AbstractArray, viewer=nothing; 
+         gamma=nothing, element=0, time=0, 
+         show_phase=true, keep_zero=false, title=nothing)
+
+Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
+The viewer is interactive and support a wide range of user actions. 
+For details see https://nanoimaging.de/View5D
+This is just a shorthand adding an new time point to an existing viewer (mode=`add_time`) for the function `view5d`. See `view5d` for arguments description.
+See documentation of `view5d` for explanation of the parameters.
+"""
+function vt(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
+    viewer = get_active_viewer();
+    if isnothing(viewer)
+        vv(data, viewer; gamma=gamma, mode="new", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+    else
+        vv(data, viewer; gamma=gamma, mode="add_time", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+    end
+end
+
 """
     vep(data :: AbstractArray, viewer=nothing; 
-         gamma=nothing, mode="new", element=0, time=0, 
+         gamma=nothing, element=0, time=0, 
          show_phase=true, keep_zero=false, title=nothing)
 
 Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
@@ -840,8 +1023,23 @@ For details see https://nanoimaging.de/View5D
 This is just a shorthand (with `show_phase=true`) adding an element to an existing viewer (mode=`add_element`) for the function `view5d`. See `view5d` for arguments description.
 See documentation of `view5d` for explanation of the parameters.
 """
-function vep(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=true, keep_zero=false, title=nothing)
-    ve(data, viewer; gamma=gamma, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, title=title)
+function vep(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
+    ve(data, viewer; gamma=gamma, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+end
+
+"""
+    vtp(data :: AbstractArray, viewer=nothing; 
+         gamma=nothing, element=0, time=0, 
+         show_phase=true, keep_zero=false, title=nothing)
+
+Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
+The viewer is interactive and support a wide range of user actions. 
+For details see https://nanoimaging.de/View5D
+This is just a shorthand (with `show_phase=true`) adding an time point to an existing viewer (mode=`add_element`) for the function `view5d`. See `view5d` for arguments description.
+See documentation of `view5d` for explanation of the parameters.
+"""
+function vtp(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
+    vt(data, viewer; gamma=gamma, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
 end # module
