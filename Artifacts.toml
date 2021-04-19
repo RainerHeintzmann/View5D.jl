@@ -1,0 +1,14 @@
+# using Tar, Inflate, SHA
+# cd("C:\\Users\\pi96doc\\Documents\\Programming\\Java\\View5D")
+# filename = "View5D_v2.3.1-jar.tar.gz"
+# println("git-tree-sha1 = \"", Tar.tree_hash(IOBuffer(inflate_gzip(filename))),"\"")
+# println("sha256 = \"", bytes2hex(open(sha256, filename)), "\"")
+# https://github.com/fiji/View5D/releases/download/2.3.1-jar/View5D_v2.3.1.jar.tar.gz
+
+[View5D-jar]
+git-tree-sha1 = "cd02bbb2c610d834696219559d6b2ad05c591d3a"
+lazy = true
+
+    [[View5D-jar.download]]
+    url = "https://github.com/fiji/View5D/releases/download/2.3.1-jar/View5D_v2.3.1-jar.tar.gz"    
+    sha256 = "667051e21db5a5d9563942b58e402a0469e39557128e38a8e319b8d8ca8dd54d"
