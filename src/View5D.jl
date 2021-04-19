@@ -880,6 +880,7 @@ function display_array(ex, name, disp=vv) where {N,T}
 end
 
 using Base
+
 macro vv(exs...)
     blk = Expr(:block)
     for ex in exs
@@ -891,6 +892,7 @@ macro vv(exs...)
     isempty(exs) || # push!(blk.args, :value)
     return blk
 end
+
 macro vep(exs...)
     blk = Expr(:block)
     for ex in exs
@@ -967,10 +969,10 @@ See documentation of `view5d` for explanation of the parameters.
 """
 function ve(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, elements_linked=false)
     viewer = get_viewer(viewer)
-    set_elements_linked(elements_linked, viewer)
     if isnothing(viewer)
         vv(data, viewer; gamma=gamma, mode="new", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     else
+        set_elements_linked(elements_linked, viewer)
         vv(data, viewer; gamma=gamma, mode="add_element", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     end
 end
@@ -990,10 +992,10 @@ See documentation of `view5d` for explanation of the parameters.
 """
 function vt(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, times_linked=false)
     viewer = get_viewer(viewer);
-    set_times_linked(times_linked, viewer)
     if isnothing(viewer)
         vv(data, viewer; gamma=gamma, mode="new", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     else
+        set_times_linked(times_linked, viewer)
         vv(data, viewer; gamma=gamma, mode="add_time", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     end
 end
