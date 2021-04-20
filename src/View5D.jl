@@ -909,7 +909,7 @@ end
 
 function display_array(arr::AbstractArray{N,T}, name, disp=vv) where {N,T}
     disp(arr,name=name)
-    return "in view5d"
+    return "in_view5d"
 end
 function display_array(ex, name, disp=vv) where {N,T}
     repr(begin local value = ex end)

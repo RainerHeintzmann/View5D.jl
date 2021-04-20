@@ -12,6 +12,7 @@ data =  gaussian(sz,offset = offsets, weight=rand(N), sigma=sigmas);  # generate
 
 # Lets do a 2d diffusion of guassian blobs over time:
 
+using View5D, IndexFunArrays # you may need to add the package IndexFunArrays
 T = 100
 sz = (50,50,1,10,T)
 N = 7
