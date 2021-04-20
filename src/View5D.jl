@@ -742,6 +742,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
     else
         throw(ArgumentError("unknown mode $mode, choose new, replace, add_element or add_time"))
     end
+    to_front(myviewer)
     return myviewer
 end
 
