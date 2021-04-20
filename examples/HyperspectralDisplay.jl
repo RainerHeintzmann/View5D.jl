@@ -15,7 +15,7 @@ data =  gaussian(sz,offset = offsets, weight=rand(N), sigma=sigmas);  # generate
 using View5D, IndexFunArrays # you may need to add the package IndexFunArrays
 T = 100
 sz = (50,50,1,10,T)
-N = 7
+N = 70
 offsets = 1 .+ (sz[1:4].-1) .* rand(4,N);
 data = zeros(sz);
 sigmas = 2.0 .*(0.3 .+rand(4,N))
