@@ -626,7 +626,8 @@ function to_jtype(anArray)
     return (myJArr,jtype)
 end
 
-viewers = Dict() # Ref[Dict]
+viewers = Dict() # Ref[Dict] storing viewer 
+viewer_sizes = Dict() # storing the current size information as a tuple for each viewer
 
 function get_active_viewer()
     if haskey(viewers,"active")
@@ -647,11 +648,12 @@ function set_active_viewer(myviewer)
     viewers["active"] = myviewer
 end
 
+# if newsize does not agree to active size a new viewer is returned instead
 function get_viewer(viewer=nothing)
     if isnothing(viewer)
-        return get_active_viewer()
+        v= get_active_viewer()
     else
-        return viewer
+        v= viewer
     end
 end
 
@@ -669,20 +671,37 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
     V = @jimport view5d.View5D
     if isnothing(viewer)
         viewer = get_active_viewer();
-        if isnothing(viewer)
-            viewer=V
+    end
+
+    if isnothing(viewer)  # checks about the need to create a new viewer
+        mode = "new"  # ignores the user request and opens a new viewer to avoid a problem in the View5D java program
+    else 
+        vs = viewer_sizes[viewer][1:3]
+        vn = [sizeX,sizeY,sizeZ]
+        if isnothing(vs) || vs != vn
+            if mode != "new"
+                @warn "Nonmatching new size $vn does not agree to current size $vs. Startin new viewer instead."
+            end
+            mode = "new"  # ignores the user request and opens a new viewer to avoid a problem in the View5D java program
         end
+    end
+
+    if isnothing(viewer)
+        viewer=V
     end
 
     if mode == "new"
         command = string("Start5DViewer", addCpx)
         myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint),
                         myJArr[:], sizeX, sizeY, sizeZ, sizeE, sizeT);
+        viewer_sizes[myviewer] = [sizeX,sizeY,sizeZ,sizeE,sizeT]
         if !isnothing(name)
             for E in 0:get_num_elements(myviewer)-1
                 set_element_name(E, name, myviewer)
             end
-        end            
+        end
+        set_elements_linked(false,myviewer)
+        set_times_linked(true,myviewer)
     elseif mode == "replace"
         command = string("ReplaceData", addCpx)
         #@show viewer 
@@ -694,6 +713,8 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
         for e in 0:sizeE-1
             myviewer=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
                             myJArr[e*size3d+1:end],sizeX, sizeY, sizeZ, sizeE, sizeT); 
+            viewer_sizes[viewer][4] += 1
+            viewer_sizes[myviewer] = viewer_sizes[viewer] # one would assume that the reference does not change but it does ...
             set_element(-1) # go to the last element
             process_keys("t",myviewer)   
             if !isnothing(name)
@@ -707,6 +728,8 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
         for t in 0:sizeT-1
             myviewer=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
                             myJArr[t*size4d+1:end],sizeX, sizeY, sizeZ, sizeE, sizeT);
+            viewer_sizes[viewer][5] += 1
+            viewer_sizes[myviewer] = viewer_sizes[viewer] # one would assume that the reference does not change but it does ...
             set_time(-1) # go to the last element
             for e in 0: get_num_elements()-1 # just to normalize colors and set names
                 set_element(e) # go to the this element
@@ -722,15 +745,31 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
     return myviewer
 end
 
-function add_phase(data, start_element=2, viewer=nothing; name=nothing)
+function add_phase(data, start_element=1, viewer=nothing; name=nothing)
     ne = start_element
     sz=expand_size(size(data),5)
     set_time(-1) # go to the last slice
     for E in 0:sz[4]-1
         phases = 180 .*(angle.(data).+pi)./pi  # in degrees
         # data.unit.append("deg")  # dirty trick
-        view5d(phases, viewer; gamma=1.0, mode="add_element", element=ne+E+1, name=name)
-        set_value_name(name*"_phase", viewer;element=ne+E)
+        if get_num_times(viewer) == 1
+            viewer = view5d(phases, viewer; gamma=1.0, mode="add_element", element=ne+E+1, name=name)
+            # all color updates need to only be done the first time
+            set_element(-1, viewer)
+            process_keys("cccccccccccc", viewer) # toggle color mode 12x to reach the cyclic colormap
+            process_keys("56", viewer) # for some reason this avoids dark pixels in the cyclic color display.
+            process_keys("vVe", viewer) # Toggle from additive into multiplicative display    
+        else
+            el = ne+E
+            ti = get_num_times(viewer)-1
+            # @show "replacing $start_element, $E, $el, $ti "
+            viewer = view5d(phases, viewer; gamma=1.0, mode="replace", element=el, time=ti, name=name)
+        end
+        if isnothing(name)
+            set_value_name("phase", viewer;element=ne+E)
+        else
+            set_value_name(name*"_phase", viewer;element=ne+E)
+        end
         set_value_unit("deg", viewer;element=ne+E)
         #@show ne+E
         set_min_max_thresh(0.0, 360.0, viewer;element=ne+E) # to set the color to the correct values
@@ -739,10 +778,6 @@ function add_phase(data, start_element=2, viewer=nothing; name=nothing)
         #to_front()    
 
         # process_keys("E", viewer) # advance to next element to the just added phase-only channel
-        set_element(-1, viewer)
-        process_keys("cccccccccccc", viewer) # toggle color mode 12x to reach the cyclic colormap
-        process_keys("56", viewer) # for some reason this avoids dark pixels in the cyclic color display.
-        process_keys("vVe", viewer) # Toggle from additive into multiplicative display
     end
     if sz[4]==1
         process_keys("C", viewer) # Back to Multicolor mode
@@ -843,7 +878,7 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new"
     end
     if show_phase && myDataType <: Complex
         if mode=="add_time"
-            add_phase(data, get_num_elements(), myviewer, name=name)
+            add_phase(data, 1, myviewer, name=name)
         else
             add_phase(data, size(data,4), myviewer, name=name)
         end
