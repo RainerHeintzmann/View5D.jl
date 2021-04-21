@@ -35,7 +35,7 @@ export set_gamma, set_min_max_thresh
 export set_element, set_time, set_elements_linked, set_times_linked
 export set_element_name, get_num_elements, get_num_times, set_title
 export set_display_size
-export export_marker_lists, import_marker_lists, delete_all_marker_lists, export_markers_string
+export export_marker_lists, import_marker_lists, delete_all_marker_lists, export_markers_string, empty_marker_list
 #export init_layout, invalidate 
 
 using JavaCall
@@ -427,6 +427,18 @@ function export_markers_string(myviewer=nothing)
 end 
 
 """
+    empty_marker_list(lists,entries)
+creates an empty marker list with the list numbers and (empty) parent connectivity information already filled in.
+
+# Arguments
+* lists: number of marker lists to creat
+* entries: number of entries in each list
+"""
+function empty_marker_list(lists,entries)
+    markers = [Float64.([(p-1)÷entries,mod(p-1,entries),0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,-1,-1,-1,-1,-1]) for p in 1:lists*entries]
+end
+
+"""
     import_marker_lists(marker_list, myviewer=nothing)
     imports marker lists to be stored and displayed in the viewer.
 
@@ -709,6 +721,10 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
         myviewer = viewer
     elseif mode == "add_element"
         command = string("AddElement", addCpx)
+        nt = get_num_times(viewer)
+        if sizeT != nt
+            throw(ArgumentError("Added elements, the number of times $nt in the viewer need to corrspond to the time dimension of this data $sizeT."))
+        end
         size3d = sizeX*sizeY*sizeZ
         for e in 0:sizeE-1
             myviewer=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
@@ -723,6 +739,10 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
             end
         end
     elseif mode == "add_time"
+        ne = get_num_elements(viewer)
+        if sizeE != ne
+            throw(ArgumentError("Added times, the number of elements $ne in the viewer need to corrspond to the time dimension of this data $sizeE."))
+        end
         command = string("AddTime", addCpx)
         size4d = sizeX*sizeY*sizeZ*sizeE
         for t in 0:sizeT-1

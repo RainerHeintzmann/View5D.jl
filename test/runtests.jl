@@ -1,50 +1,47 @@
-using JavaCall
-using Pkg
-#View5D_jar = joinpath(Pkg.dir(), "View5D", "View5D.jar")
-#JavaCall.addClassPath(View5D_jar)
+using View5D, Test
 
-#JavaCall.init(["-verbose:jni", "-verbose:gc","-Djava.class.path=$(joinpath(Pkg.dir(), "View5D\\AllClasses"))"])
-JavaCall.init(["-Djava.class.path=$(joinpath(Pkg.dir(), "View5D\\AllClasses"))"])
+data1 = rand(5,5,3,2,2);
+data2 = rand(5,5,3,2,2);
+data3 = rand(5,5,3,4,2); # more elements
 
+@testset "start viewers" begin
+    @vv data1 # start the viewer
+    @ve data2 # append along element
+    @vt data3 # append along time
+    @vt data3 # append along time
+    @test 6 == get_num_times()
+    @test 4 == get_num_elements()
+    hide_viewer() 
+end
 
-#JavaCall.init(["-verbose:jni", "-verbose:gc","-Djava.class.path=$(joinpath(Pkg.dir(), "JavaCall", "test"))"])
-#JavaCall.init(["-verbose:jni", "-verbose:gc","-Djava.class.path=$(joinpath(Pkg.dir(), "JavaCall", "test"))","-Djava.class.path=C:\\Users\\pi96doc\\Programs\\Fiji.app\\plugins\\View5D_-1.3.1-SNAPSHOT.jar"])
-#JavaCall.init(["-Xmx512M", "-verbose:jni", "-verbose:gc","-Djava.class.path=C:\\Users\\pi96doc\\Programs\\Fiji.app\\plugins\\View5D_-1.3.1-SNAPSHOT.jar"])
-#JavaCall.init(["-Xmx512M", "-verbose:jni", "-verbose:gc","-Djava.class.path=$(joinpath(Pkg.dir(), "View5D", "View5D.jar"))"])
-#JavaCall.init(["-Xmx512M", "-verbose:jni", "-verbose:gc","-Djava.class.path=$(joinpath(Pkg.dir(), "View5D", "AllClasses"))"])
+@testset "interaction with markers" begin
+    @vv data1 # start the viewer
+    markers = empty_marker_list(2,2)
+    markers[1][3]=1.0 
+    markers[2][4]=2.0 
+    markers[2][5]=1.0 
+    markers[3][3]=3.0 
+    markers[3][5]=2.0 
+    markers[4][3]=1.5 
+    markers[4][4]=1.5 
+    markers[4][5]=2.0 
+    import_marker_lists(markers)
+    exported = export_marker_lists()
+    mydiff = exported .- markers
+    for d in 1:4
+        @test mydiff[d][2:9] == zeros(8)
+    end
+    delete_all_marker_lists()
+end
 
-#a=JString("how are you")
-#a.ptr != C_NULL
-#11==ccall(JavaCall.jnifunc.GetStringUTFLength, jint, (Ptr{JavaCall.JNIEnv}, Ptr{Void}), JavaCall.penv, a.ptr)
-#b=ccall(JavaCall.jnifunc.GetStringUTFChars, Ptr{Uint8}, (Ptr{JavaCall.JNIEnv}, Ptr{Void}, Ptr{Void}), JavaCall.penv, a.ptr, C_NULL)
-#bytestring(b) == "how are you"
+data1 = rand(5,5,3,1,1) .+ 1im.*rand(5,5,3,1,1);
+data2 = rand(5,5,3,1,1) .+ 1im.*rand(5,5,3,1,1);
+data3 = rand(5,5,3,2,1) .+ 1im.*rand(5,5,3,2,1); # more elements
 
-myArray= rand(64,64,3,2,2)  # this is the 5D-Array to display
+@testset "complex-valued display" begin
+    @vp data1 # start a new viewer in phase mode
+    set_gamma(1.0)
+    @vep data2 # start a new viewer in phase mode
+    hide_viewer() 
+end
 
-jfloatArr=Array{Float32,1};
-myJArr=Array(jfloat,prod(size(myArray)));
-myJArr[:]=myArray[:];
-V = @jimport "View5D"
-#qq=jcall(V, "testing456", jfloatArr, (jfloatArr,), myJArr)
-
-myviewer=jcall(V, "Start5DViewer", JavaObject{:View5D}, (jfloatArr, jint, jint, jint, jint, jint), myJArr, size(myArray,1), size(myArray,2), size(myArray,3), size(myArray,4),size(myArray,5))
-
-#jcall(V, "testing123", jfloat, (jfloat,), 10.0)
-#jcall(V, "testing123", myf, (myf,), 12.2)
-
-#T = @jimport "Test"
-#10 == jcall(T, "testInt", jint, (jint,), 10)
-
-#T2 = @jimport "Testq"
-#10 == jcall(T2, "testInt", jint, (jint,), 10)
-
-#T3 = @jimport "TaggedComponent"
-#yyy=jcall(T3, "TaggedComponent", JObject, (JString,JString,JObject),"Hello","World",0)
-#yyy=jcall(T3, "getDescription", JString, ())
-#zzz=jcall(T3, "getValue", JObject)
-
-#T4 = @jimport "View5D"
-#jcall(T4, "testing123", jfloat, (jfloat,), 10.0)
-
-#T2 = @jimport "Testq"
-#jcall(T2, "testFloat", jfloat, (jfloat,), 10.0)
