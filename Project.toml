@@ -14,3 +14,12 @@ Colors = "0.12.7"
 ImageCore = "0.8.21"
 JavaCall = "0.7.7"
 julia = "1, 1.6"
+
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
+JavaCall = "494afd89-becb-516b-aafa-70d2670c0337"
+
+[targets]
+test = ["Test", "Pkg", "JavaCall"]
