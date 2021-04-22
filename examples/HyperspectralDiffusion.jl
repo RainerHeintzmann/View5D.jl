@@ -1,7 +1,7 @@
 using View5D, IndexFunArrays # you may need to add the package IndexFunArrays
 T = 100
 sz = (50,50,1,10,T)
-N = 70
+N = 7
 offsets = 1 .+ (sz[1:4].-1) .* rand(4,N);
 data = zeros(sz);
 sigmas = 2.0 .*(0.3 .+rand(4,N))
