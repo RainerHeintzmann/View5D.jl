@@ -746,7 +746,8 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
         for e in 0:sizeE-1
             myviewer=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
                             myJArr[e*size3d+1:end],sizeX, sizeY, sizeZ, sizeE, sizeT); 
-            viewer_sizes[viewer][4] += 1
+            viewer_sizes[viewer][4] = get_num_elements(viewer)  # to also account for user deletes
+            viewer_sizes[viewer][5] = get_num_times(viewer)
             viewer_sizes[myviewer] = viewer_sizes[viewer] # one would assume that the reference does not change but it does ...
             set_element(-1) # go to the last element
             process_keys("t",myviewer)   
@@ -765,7 +766,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
         for t in 0:sizeT-1
             myviewer=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
                             myJArr[t*size4d+1:end],sizeX, sizeY, sizeZ, sizeE, sizeT);
-            viewer_sizes[viewer][5] += 1
+            viewer_sizes[viewer][5] = get_num_times(viewer)
             viewer_sizes[myviewer] = viewer_sizes[viewer] # one would assume that the reference does not change but it does ...
             set_time(-1) # go to the last element
             for e in 0: get_num_elements()-1 # just to normalize colors and set names
@@ -1031,7 +1032,7 @@ function vep(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, ti
     ve(data, viewer; gamma=gamma, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
-# just a non-exported helper function to be used in the various macros below
+## just a non-exported helper function to be used in the various macros below
 function do_start(exs;mystarter=vv)
     blk = Expr(:block)
     alt_name=nothing
@@ -1044,8 +1045,6 @@ function do_start(exs;mystarter=vv)
         else
             name = :(println($(esc(varname))*" = ",
                 begin local value=display_array($(esc(ex)),$(esc(alt_name)),$(mystarter)) end))
-            #value = display_array(ex,alt_name,vv)
-            #name = :(println($(esc(varname))*" = ",  $(value) ))
         end
         push!(blk.args, name)
         if typeof(ex)==String
@@ -1060,28 +1059,64 @@ end
 
 """
     @vv expressions
-a conveniance macro in its usage similar to `@show`. The array-like expressions are displayed by opening a viewer for each such array.
+a conveniance macro in its usage similar to `@show`. 
+The array-like expressions are displayed by opening a viewer for each such array.
 The expression also constitutes the name of the displayed data in the viewer.
 A string in this list of expressions in front of an array is interpreted as a replacement for the name.
+Note that variables of String type or expressions in strings do currently not work. 
 ## Example
 ```jldoctest
-
+julia> @vv "Some random RGB" rand(5,6,7,3,2)
+"Some random RGB" = "Some random RGB"
+created data 3
+rand(5, 6, 7, 3, 2) = in_view5d
 ```
 """
 macro vv(exs...)
-    do_start(exs, mystarter=vv)
+    do_start(exs; mystarter=vv)
 end
 
+"""
+    @ve expressions
+a conveniance macro in its usage similar to `@show`, displaying several array in a joined viewer or adding to an alraedy existing viewer as new elements. 
+The expression typically also constitutes the name of the displayed data in the viewer.
+A string in this list of expressions in front of an array is interpreted as a replacement for the name.
+Note that variables of String type or expressions in strings do currently not work. 
+## Example
+```jldoctest
+julia> @vv "Some random RGB" rand(5,4,7,3,2)
+"Some random RGB" = "Some random RGB"
+created data 3
+rand(5, 4, 7, 3, 2) = in_view5d
+
+julia> @ve "more random stuff" rand(5,4,7,1,2)
+"more random stuff" = "more random stuff"
+rand(5, 4, 7, 1, 2) = in_view5d
+
+```
+"""
 macro ve(exs...)
-    do_start(exs, mystarter=ve)
+    do_start(exs; mystarter=ve)
 end
 
+"""
+    @vp expressions
+a conveniance macro in its usage similar to `@show`, displaying also phase information using view5d. See `@vv` and `vp` for details. 
+"""
 macro vp(exs...)
-    do_start(exs, mystarter=vp)
+    do_start(exs; mystarter=vp)
 end
 
+"""
+    @vt expressions
+a conveniance macro in its usage similar to `@show`, displaying several array in a joined viewer or adding to an alraedy existing viewer as new time points. 
+The expression typically also constitutes the name of the displayed data in the viewer.
+A string in this list of expressions in front of an array is interpreted as a replacement for the name.
+Note that variables of String type or expressions in strings do currently not work. 
+```
+"""
 macro vt(exs...)
-    do_start(exs, mystarter=vt)
+    do_start(exs; mystarter=vt)
 end
 
 #=
