@@ -34,8 +34,8 @@ export repaint, update_panels, to_front, hide_viewer, set_fontsize # , close_all
 export set_gamma, set_min_max_thresh
 export set_element, set_time, set_elements_linked, set_times_linked
 export set_element_name, get_num_elements, get_num_times, set_title
-export set_display_size
-export get_viewer_history, close_all
+export set_display_size, set_active_viewer, clear_active
+export get_viewer_history, close_all, to_front_all
 export export_marker_lists, import_marker_lists, delete_all_marker_lists, export_markers_string, empty_marker_list
 #export init_layout, invalidate 
 
@@ -488,7 +488,9 @@ moves the viewer on top of other windows
 """
 function to_front(myviewer=nothing)
     myviewer=get_viewer(myviewer)
-    jcall(myviewer, "toFront", Nothing, ());
+    if !isnothing(myviewer)
+        jcall(myviewer, "toFront", Nothing, ());
+    end
 end
 
 """
@@ -499,8 +501,10 @@ hides the viewer. It can be shown again by calling "to_front"
 """
 function hide_viewer(myviewer=nothing)
     myviewer=get_viewer(myviewer)
-    jcall(myviewer, "closeAll", Nothing, ());
-    # jcall(myviewer, "hide", Nothing, ());   # no idea why this does not work at the moment
+    if !isnothing(myviewer)
+        jcall(myviewer, "closeAll", Nothing, ());
+        # jcall(myviewer, "hide", Nothing, ());   # no idea why this does not work at the moment
+    end
 end
 
 """
@@ -514,6 +518,20 @@ function close_all(myviewer=nothing)
     hide_viewer()
     for v in viewers["history"]
         hide_viewer(v)
+    end
+end
+
+"""
+    to_front_all(myviewer=nothing)
+brings all (previously closed) viewers back to the display using the history.
+
+# Arguments
+* `myviewer`: the viewer to apply this to. By default the active viewer is used
+"""
+function to_front_all(myviewer=nothing)
+    to_front()
+    for v in viewers["history"]
+        to_front(v)
     end
 end
 
@@ -670,6 +688,20 @@ function get_active_viewer()
     else
         myviewer=nothing
     end
+end
+
+"""
+    clear_active()
+clears the active viewer. This is useful in front of for loops, if you want to use `vt` or `ve` as display methods.
+##Example:
+```jldoctest
+julia> clear_active(); for iter in 1:10 vt(rand(5,5,4,3,1), name="Iteration $(iter)") end
+created data 3
+
+```
+"""
+function clear_active()
+    set_active_viewer(nothing)
 end
 
 function set_active_viewer(myviewer)
@@ -1027,6 +1059,12 @@ This is just a shorthand adding an new time point to an existing viewer (mode=`a
 See documentation of `view5d` for explanation of the parameters.
 
 `times_linked`: determines wether all time points are linked together (no indidual scaling)
+##Example:
+```jldoctest
+julia> clear_active(); for iter in 1:10 vt(rand(5,5,4,3,1), name="Iteration $(iter)") end
+created data 3
+
+```
 """
 function vt(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, times_linked=false)
     viewer = get_viewer(viewer);
