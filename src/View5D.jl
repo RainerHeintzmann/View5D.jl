@@ -502,6 +502,7 @@ hides the viewer. It can be shown again by calling "to_front"
 function hide_viewer(myviewer=nothing)
     myviewer=get_viewer(myviewer)
     if !isnothing(myviewer)
+        @show myviewer
         jcall(myviewer, "closeAll", Nothing, ());
         # jcall(myviewer, "hide", Nothing, ());   # no idea why this does not work at the moment
     end
