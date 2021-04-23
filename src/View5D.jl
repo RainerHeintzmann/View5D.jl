@@ -695,7 +695,7 @@ end
 clears the active viewer. This is useful in front of for loops, if you want to use `vt` or `ve` as display methods.
 ##Example:
 ```jldoctest
-julia> clear_active(); for iter in 1:10 vt(rand(5,5,4,3,1), name="Iteration $(iter)") end
+julia> clear_active(); for iter in 1:10 vt(rand(5,5,4,3,1), name="Iteration \$(iter)") end
 created data 3
 
 ```
@@ -1061,7 +1061,7 @@ See documentation of `view5d` for explanation of the parameters.
 `times_linked`: determines wether all time points are linked together (no indidual scaling)
 ##Example:
 ```jldoctest
-julia> clear_active(); for iter in 1:10 vt(rand(5,5,4,3,1), name="Iteration $(iter)") end
+julia> clear_active(); for iter in 1:10 vt(rand(5,5,4,3,1), name="Iteration \$(iter)") end
 created data 3
 
 ```
