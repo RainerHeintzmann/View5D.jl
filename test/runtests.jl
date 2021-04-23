@@ -31,6 +31,7 @@ end
     for d in 1:4
         @test mydiff[d][2:9] == zeros(8)
     end
+    @test nothing != export_markers_string()
     delete_all_marker_lists()
 end
 
@@ -39,9 +40,40 @@ data2 = rand(5,5,3,1,1) .+ 1im.*rand(5,5,3,1,1);
 data3 = rand(5,5,3,2,1) .+ 1im.*rand(5,5,3,2,1); # more elements
 
 @testset "complex-valued display" begin
-    @vp data1 # start a new viewer in phase mode
-    set_gamma(1.0)
-    @vep data2 # start a new viewer in phase mode
-    hide_viewer() 
+    @test nothing == @vp data1 # start a new viewer in phase mode
+    @test nothing == set_gamma(1.0)
+    @test nothing == @vep data2 # start a new viewer in phase mode
 end
 
+@testset "view5d datatypes" begin
+    @test nothing != view5d(rand(Float32,2,2,2,2,2)) # -> float
+    @test nothing != view5d(rand(Float64,2,2,2,2,2)) # -> double
+    @test nothing != view5d(rand(ComplexF32,2,2,2,2,2)) # > Complex
+    @test nothing != view5d(rand(ComplexF64,2,2,2,2,2)) # -> Complex
+    @test nothing != view5d(rand(Int8,2,2,2,2,2)) # -> Byte
+    @test nothing != view5d(rand(UInt8,2,2,2,2,2)) # -> Byte
+    @test nothing != view5d(rand(Int16,2,2,2,2,2)) # -> Short (signed)
+    @test nothing != view5d(rand(UInt16,2,2,2,2,2)) # -> Unsigned Short
+    @test nothing != view5d(rand(Int32,2,2,2,2,2)) # -> int
+    @test nothing != view5d(rand(UInt32,2,2,2,2,2)) # -> double
+    @test nothing != view5d(rand(Int64,2,2,2,2,2)) # -> int
+    @test nothing != view5d(rand(UInt64,2,2,2,2,2)) # -> int
+    @test nothing == close_all()
+    v = view5d(rand(Float32,2,2,2,2,2))
+    @test nothing == set_gamma(1.0,v, element=0)
+    @test nothing == set_display_size(400,500,v)
+    @test nothing == set_fontsize(25,v)
+    @test nothing == hide_viewer(v)
+    @test nothing == to_front(v)
+    @test nothing == set_value_unit("mm", v,element=1)
+    @test nothing == set_min_max_thresh(0.0, 3.0, v,element=1)
+    @test nothing == process_key_main_window('C', v)
+    @test nothing == process_key_element_window('C', v)
+    @test nothing == update_panels()
+    @test nothing == set_time(0,v)
+    @test nothing == set_element(0,v)
+    @test nothing == set_times_linked(false,v)
+    @test nothing == set_elements_linked(true,v)
+    @test nothing == update_panels()
+    @test nothing == close_all()
+end

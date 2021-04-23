@@ -30,11 +30,12 @@ export view5d, vv, vp, vt, ve, vep, get_active_viewer
 export @vv, @ve, @vp, @vep, @vt
 export process_key_element_window, process_key_main_window, process_keys
 export set_axis_scales_and_units, set_value_unit, set_value_name
-export repaint, update_panels, to_front, hide_viewer, set_fontsize
+export repaint, update_panels, to_front, hide_viewer, set_fontsize # , close_all
 export set_gamma, set_min_max_thresh
 export set_element, set_time, set_elements_linked, set_times_linked
 export set_element_name, get_num_elements, get_num_times, set_title
 export set_display_size
+export get_viewer_history, close_all
 export export_marker_lists, import_marker_lists, delete_all_marker_lists, export_markers_string, empty_marker_list
 #export init_layout, invalidate 
 
@@ -117,7 +118,6 @@ function set_time(mytime=-1, myviewer=nothing)
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "setTime", Nothing, (jint,), mytime);
     update_panels(myviewer)
-    repaint(myviewer)
 end
 
 """
@@ -140,7 +140,6 @@ function set_element(myelement=-1, myviewer=nothing)
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "setElement", Nothing, (jint,), myelement);
     update_panels(myviewer)
-    repaint(myviewer)
 end
 
 """
@@ -282,7 +281,6 @@ function set_axis_scales_and_units(pixelsize=(1.0,1.0,1.0,1.0,1.0),
             element,time, value_scale, pixelsize..., 0,0,0,0,0,0,
             value_name, axes_names, value_unit, axes_units);
     update_panels(myviewer);
-    repaint(myviewer);
 end
 
 """
@@ -319,7 +317,6 @@ function set_value_name(name::String="a.u.", myviewer=nothing; element::Int=0)
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "NameElement", Nothing, (jint, JString), element, name);
     update_panels(myviewer)
-    repaint(myviewer)
 end
 
 """
@@ -364,7 +361,6 @@ function set_min_max_thresh(Min::Number=0.0, Max::Number=1.0, myviewer=nothing; 
     myviewer=get_viewer(myviewer)
     jcall(myviewer, "setMinMaxThresh", Nothing, (jint, jdouble, jdouble), element, Min, Max);
     update_panels(myviewer);
-    repaint(myviewer);
 end
 
 """
@@ -498,18 +494,44 @@ end
 """
     hide(myviewer=nothing)
 hides the viewer. It can be shown again by calling "to_front"
-
 # Arguments
 * `myviewer`: the viewer to apply this to. By default the active viewer is used
 """
 function hide_viewer(myviewer=nothing)
     myviewer=get_viewer(myviewer)
-    jcall(myviewer, "hide", Nothing, ());
+    jcall(myviewer, "closeAll", Nothing, ());
+    # jcall(myviewer, "hide", Nothing, ());   # no idea why this does not work at the moment
+end
+
+"""
+    close_all(myviewer=nothing)
+hides all viewers that were opened using the history.
+
+# Arguments
+* `myviewer`: the viewer to apply this to. By default the active viewer is used
+"""
+function close_all(myviewer=nothing)
+    hide_viewer()
+    for v in viewers["history"]
+        hide_viewer(v)
+    end
+end
+
+"""
+    get_viewer_history()
+returns the java handles for all viewers in the order they were opened.
+"""
+function get_viewer_history()
+    viewers["history"]
 end
 
 function update_panels(myviewer=nothing)
     myviewer=get_viewer(myviewer)
-    myviewer=jcall(myviewer, "UpdatePanels", Nothing, ());
+    jcall(myviewer, "UpdatePanels", Nothing, ());
+    repaint(myviewer);
+    to_front(myviewer);
+    process_key_main_window('5',myviewer); # do NOT use process_keys here as this causes an infinite loop!
+    process_key_main_window('6',myviewer); 
 end
 
 function repaint(myviewer=nothing)
@@ -566,7 +588,6 @@ function process_keys(KeyList::String, myviewer=nothing; mode="main")
             throw(ArgumentError("unsupported mode $mode. Use `main` or `element`"))
         end
         update_panels(myviewer)
-        repaint(myviewer)
     end
     return
 end
@@ -622,12 +643,14 @@ function to_jtype(anArray)
         jtype=jchar
     elseif isa(ArrayElement, Int16)
         jtype=jshort
-    elseif isa(ArrayElement, UInt32)
-        jtype=jlong
     elseif isa(ArrayElement, Int32)
-        jtype=jlong
+        jtype=jint 
+    elseif isa(ArrayElement, UInt32)
+        jtype=jdouble
     elseif isa(ArrayElement, Int)
-        jtype=jint
+        jtype=jdouble
+    elseif isa(ArrayElement, UInt)
+        jtype=jdouble
     end
     # mysize = prod(size(anArray))
     anArray = expanddims(anArray,5) # permutedims(expanddims(anArray,5),(2,1,3,4,5))  # 
@@ -923,8 +946,6 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new"
         end
     end
     update_panels(myviewer)
-    process_keys("eE") # to normalize this element and force an update also for the gray value image
-    to_front(myviewer)
     return myviewer
 end
 
@@ -1125,52 +1146,6 @@ end
 
 end # module
 
-#=
-
-This is a copy from my Python file to remind me of future extensions of calling this viewer.
-TODO: (already in the python version)
-- allow the addition of new elements into the viewer
-- allow replacement of elements for live-view updates
-- support axis names and scalings
-- release as a general release
-
-using JavaCall
-
-begin
-           JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "jars","View5D.jar"))"])
-           V = @jimport view5d.View5D
-           jArr = Vector{jfloat}
-           myJArr = rand(jfloat, 5,5,5,5,5);
-           myViewer = jcall(V, "Start5DViewerF", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], 5, 5, 5, 5, 5);
-end
-=#
-
-
-#=
-setSize = javabridge.make_method("setSize","(II)V")
-setName = javabridge.make_method("setName","(ILjava/lang/String;)V")
-NameElement = javabridge.make_method("NameElement","(ILjava/lang/String;)V")
-NameWindow = javabridge.make_method("NameWindow","(Ljava/lang/String;)V")
-setFontSize = javabridge.make_method("setFontSize","(I)V")
-setUnit = javabridge.make_method("setUnit","(ILjava/lang/String;)V")
-SetGamma = javabridge.make_method("SetGamma","(ID)V")
-setMinMaxThresh = javabridge.make_method("setMinMaxThresh","(IFF)V")
-ProcessKeyMainWindow = javabridge.make_method("ProcessKeyMainWindow","(C)V")
-ProcessKeyElementWindow = javabridge.make_method("ProcessKeyElementWindow","(C)V")
-UpdatePanels = javabridge.make_method("UpdatePanels","()V")
-repaint = javabridge.make_method("repaint","()V")
-hide = javabridge.make_method("hide","()V")
-toFront = javabridge.make_method("toFront","()V")
-SetElementsLinked = javabridge.make_method("SetElementsLinked","(Z)V") # Z means Boolean
-closeAll = javabridge.make_method("closeAll","()V")
-DeleteAllMarkerLists = javabridge.make_method("DeleteAllMarkerLists","()V")
-ExportMarkers = javabridge.make_method("ExportMarkers","(I)[[D")
-ExportMarkerLists = javabridge.make_method("ExportMarkerLists","()[[D")
-ExportMarkersString = javabridge.make_method("ExportMarkers","()Ljava/lang/String;")
+#=  Missing implementations from Java:
 ImportMarkers = javabridge.make_method("ImportMarkers","([[F)V")
-ImportMarkerLists = javabridge.make_method("ImportMarkerLists","([[F)V")
-AddElem = javabridge.make_method("AddElement","([FIIIII)Lview5d/View5D;")
-ReplaceDataB = javabridge.make_method("ReplaceDataB","(I,I[B)V")
-setMinMaxThresh = javabridge.make_method("setMinMaxThresh","(IDD)V")
-SetAxisScalesAndUnits = javabridge.make_method("SetAxisScalesAndUnits","(DDDDDDDDDDDDLjava/lang/String;[Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;)V")
 =#
