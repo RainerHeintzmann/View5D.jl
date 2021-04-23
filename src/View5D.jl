@@ -1119,55 +1119,9 @@ macro vt(exs...)
     do_start(exs; mystarter=vt)
 end
 
-#=
 macro vep(exs...)
-    blk = Expr(:block)
-    for ex in exs
-        varname = sprint(Base.show_unquoted, ex)
-        name = :(println($(esc(varname))*" = ",
-        begin local value=display_array($(esc(ex)),$(esc(varname)),vep) end))
-        push!(blk.args, name)
-    end
-    isempty(exs) || # push!(blk.args, :value)
-    return blk
+    do_start(exs; mystarter=vep)
 end
-
-macro vp(exs...)
-    blk = Expr(:block)
-    for ex in exs
-        varname = sprint(Base.show_unquoted, ex)
-        name = :(println($(esc(varname))*" = ",
-        begin local value=display_array($(esc(ex)),$(esc(varname)),vp) end))
-        push!(blk.args, name)
-    end
-    isempty(exs) || # push!(blk.args, :value)
-    return blk
-end
-macro ve(exs...)
-    blk = Expr(:block)
-    for ex in exs
-        varname = sprint(Base.show_unquoted, ex)
-        name = :(println($(esc(varname))*" = ",
-        begin local value=display_array($(esc(ex)),$(esc(varname)),ve) end))
-        push!(blk.args, name)
-    end
-    isempty(exs) || # push!(blk.args, :value)
-    return blk
-end
-macro vt(exs...)
-    blk = Expr(:block)
-    for ex in exs
-        varname = sprint(Base.show_unquoted, ex)
-        name = :(println($(esc(varname))*" = ",
-        begin local value=display_array($(esc(ex)),$(esc(varname)),vt) end))
-        push!(blk.args, name)
-    end
-    isempty(exs) || # push!(blk.args, :value)
-    return blk
-end
-
-=#
-
 
 end # module
 
