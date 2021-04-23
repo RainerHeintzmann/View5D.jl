@@ -2,6 +2,8 @@
 
 [View5D.jl](https://github.com/RainerHeintzmann/View5D.jl) is a Java-based viewer for up to 5-dimensional data (including complex images). It supports three mutually linked orthogonal slicing displays for XYZ coordinates, arbitrary numbers of colors (4th dimension) which can also be used to display spectral curves and a time slider for the 5th dimension.  
 
+[![codecov](https://codecov.io/gh/RainerHeintzmann/View5D.jl/branch/master/graph/badge.svg?token=2Ayxc30CAR)](https://codecov.io/gh/RainerHeintzmann/View5D.jl)
+[![CI](https://github.com/RainerHeintzmann/View5D.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/RainerHeintzmann/View5D.jl/actions/workflows/ci.yml)
 
 # Installation
 Not registered yet, but you can install current state with:
