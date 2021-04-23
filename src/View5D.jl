@@ -671,6 +671,13 @@ end
 
 function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false; 
          element=0, mytime=0, name=nothing)
+    if mode == "add_element" && size(myJArr,4)>1  # for more than one element and time added simulateneously we need to add the elements individually
+        v = nothing
+        for e in 1:size(myJArr,4)
+            v = start_viewer(viewer, collect(myJArr[:,:,:,e:e,:]), jtype, mode, isCpx, element=element, mytime=mytime, name=name)
+        end
+        return v
+    end
     jArr = Vector{jtype}
     #@show size(myJArr)
     sizeX,sizeY,sizeZ,sizeE,sizeT = size(myJArr)
@@ -711,6 +718,9 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
             for E in 0:get_num_elements(myviewer)-1
                 set_element_name(E, name, myviewer)
             end
+            set_title(name, myviewer)
+        else
+            set_title("View5D", myviewer)
         end
         set_elements_linked(false,myviewer)
         set_times_linked(true,myviewer)
@@ -720,6 +730,9 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
         for t in 0:sizeE-1
             for e in 0:sizeT-1
                 jcall(viewer, command, Nothing, (jint, jint, jArr), element+e, mytime+t, myJArr[:]);
+                if !isnothing(name)
+                    set_element_name(e, name, myviewer)
+                end
             end
         end
         myviewer = viewer
@@ -935,69 +948,12 @@ function display_array(arr::AbstractArray{N,T}, name, disp=vv) where {N,T}
     disp(arr,name=name)
     return "in_view5d"
 end
-function display_array(ex, name, disp=vv) where {N,T}
-    repr(begin local value = ex end)
+
+function display_array(ex, name, disp=vv)
+    repr(begin local value = ex end) # returns a representation (a String)
 end
 
 using Base
-
-macro vv(exs...)
-    blk = Expr(:block)
-    for ex in exs
-        varname = sprint(Base.show_unquoted, ex)
-        name = :(println($(esc(varname))*" = ",
-        begin local value=display_array($(esc(ex)),$(esc(varname)),vv) end))
-        push!(blk.args, name)
-    end
-    isempty(exs) || # push!(blk.args, :value)
-    return blk
-end
-
-macro vep(exs...)
-    blk = Expr(:block)
-    for ex in exs
-        varname = sprint(Base.show_unquoted, ex)
-        name = :(println($(esc(varname))*" = ",
-        begin local value=display_array($(esc(ex)),$(esc(varname)),vep) end))
-        push!(blk.args, name)
-    end
-    isempty(exs) || # push!(blk.args, :value)
-    return blk
-end
-
-macro vp(exs...)
-    blk = Expr(:block)
-    for ex in exs
-        varname = sprint(Base.show_unquoted, ex)
-        name = :(println($(esc(varname))*" = ",
-        begin local value=display_array($(esc(ex)),$(esc(varname)),vp) end))
-        push!(blk.args, name)
-    end
-    isempty(exs) || # push!(blk.args, :value)
-    return blk
-end
-macro ve(exs...)
-    blk = Expr(:block)
-    for ex in exs
-        varname = sprint(Base.show_unquoted, ex)
-        name = :(println($(esc(varname))*" = ",
-        begin local value=display_array($(esc(ex)),$(esc(varname)),ve) end))
-        push!(blk.args, name)
-    end
-    isempty(exs) || # push!(blk.args, :value)
-    return blk
-end
-macro vt(exs...)
-    blk = Expr(:block)
-    for ex in exs
-        varname = sprint(Base.show_unquoted, ex)
-        name = :(println($(esc(varname))*" = ",
-        begin local value=display_array($(esc(ex)),$(esc(varname)),vt) end))
-        push!(blk.args, name)
-    end
-    isempty(exs) || # push!(blk.args, :value)
-    return blk
-end
 
 """
     vp(data :: AbstractArray, viewer=nothing; 
@@ -1075,6 +1031,109 @@ function vep(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, ti
     ve(data, viewer; gamma=gamma, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
+# just a non-exported helper function to be used in the various macros below
+function do_start(exs;mystarter=vv)
+    blk = Expr(:block)
+    alt_name=nothing
+    for ex in exs
+        varname = sprint(Base.show_unquoted, ex)
+        value = ""
+        if isnothing(alt_name)            
+            name = :(println($(esc(varname))*" = ",
+                begin local value=display_array($(esc(ex)),$(esc(varname)),$(mystarter)) end))
+        else
+            name = :(println($(esc(varname))*" = ",
+                begin local value=display_array($(esc(ex)),$(esc(alt_name)),$(mystarter)) end))
+            #value = display_array(ex,alt_name,vv)
+            #name = :(println($(esc(varname))*" = ",  $(value) ))
+        end
+        push!(blk.args, name)
+        if typeof(ex)==String
+            alt_name = ex
+        else 
+            alt_name = nothing
+        end
+    end
+    isempty(exs) || # push!(blk.args, :value)
+    return blk
+end
+
+"""
+    @vv expressions
+a conveniance macro in its usage similar to `@show`. The array-like expressions are displayed by opening a viewer for each such array.
+The expression also constitutes the name of the displayed data in the viewer.
+A string in this list of expressions in front of an array is interpreted as a replacement for the name.
+## Example
+```jldoctest
+
+```
+"""
+macro vv(exs...)
+    do_start(exs, mystarter=vv)
+end
+
+macro ve(exs...)
+    do_start(exs, mystarter=ve)
+end
+
+macro vp(exs...)
+    do_start(exs, mystarter=vp)
+end
+
+macro vt(exs...)
+    do_start(exs, mystarter=vt)
+end
+
+#=
+macro vep(exs...)
+    blk = Expr(:block)
+    for ex in exs
+        varname = sprint(Base.show_unquoted, ex)
+        name = :(println($(esc(varname))*" = ",
+        begin local value=display_array($(esc(ex)),$(esc(varname)),vep) end))
+        push!(blk.args, name)
+    end
+    isempty(exs) || # push!(blk.args, :value)
+    return blk
+end
+
+macro vp(exs...)
+    blk = Expr(:block)
+    for ex in exs
+        varname = sprint(Base.show_unquoted, ex)
+        name = :(println($(esc(varname))*" = ",
+        begin local value=display_array($(esc(ex)),$(esc(varname)),vp) end))
+        push!(blk.args, name)
+    end
+    isempty(exs) || # push!(blk.args, :value)
+    return blk
+end
+macro ve(exs...)
+    blk = Expr(:block)
+    for ex in exs
+        varname = sprint(Base.show_unquoted, ex)
+        name = :(println($(esc(varname))*" = ",
+        begin local value=display_array($(esc(ex)),$(esc(varname)),ve) end))
+        push!(blk.args, name)
+    end
+    isempty(exs) || # push!(blk.args, :value)
+    return blk
+end
+macro vt(exs...)
+    blk = Expr(:block)
+    for ex in exs
+        varname = sprint(Base.show_unquoted, ex)
+        name = :(println($(esc(varname))*" = ",
+        begin local value=display_array($(esc(ex)),$(esc(varname)),vt) end))
+        push!(blk.args, name)
+    end
+    isempty(exs) || # push!(blk.args, :value)
+    return blk
+end
+
+=#
+
+
 end # module
 
 #=
@@ -1096,6 +1155,7 @@ begin
            myViewer = jcall(V, "Start5DViewerF", V, (jArr, jint, jint, jint, jint, jint), myJArr[:], 5, 5, 5, 5, 5);
 end
 =#
+
 
 #=
 setSize = javabridge.make_method("setSize","(II)V")
