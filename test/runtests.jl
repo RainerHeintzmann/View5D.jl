@@ -11,7 +11,7 @@ data3 = rand(5,5,3,4,2); # more elements
     @vt data3 # append along time
     @test 6 == get_num_times()
     @test 4 == get_num_elements()
-    hide_viewer() 
+    sleep(0.1); hide_viewer() 
 end
 
 @testset "interaction with markers" begin
@@ -25,13 +25,16 @@ end
     markers[4][3]=1.5 
     markers[4][4]=1.5 
     markers[4][5]=2.0 
-    import_marker_lists(markers)
-    exported = export_marker_lists()
+    sleep(0.1); import_marker_lists(markers)
+    sleep(0.1); exported = export_marker_lists()
     mydiff = exported .- markers
     for d in 1:4
+        sleep(0.1); 
         @test mydiff[d][2:9] == zeros(8)
     end
+    sleep(0.1); 
     @test nothing != export_markers_string()
+    sleep(0.1); 
     delete_all_marker_lists()
 end
 

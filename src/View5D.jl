@@ -37,6 +37,7 @@ export set_element_name, get_num_elements, get_num_times, set_title
 export set_display_size, set_active_viewer, clear_active
 export get_viewer_history, close_all, to_front_all
 export export_marker_lists, import_marker_lists, delete_all_marker_lists, export_markers_string, empty_marker_list
+export DisplayMode, DisplAddElement, DisplAddTime, DisplNew, DisplReplace
 #export init_layout, invalidate 
 
 using JavaCall
@@ -44,17 +45,24 @@ using LazyArtifacts  # used to be Pkg.artifacts
 using Colors, ImageCore
 # using JavaShowMethods
 
-# In the line below dirname(@__DIR__) is absolutely crucial, otherwise strange errors appear
-# in dependence of how the julia system initializes and whether you run in VScode or
-# an ordinary julia REPL. This was hinted by @mkitti
-# see https://github.com/JuliaInterop/JavaCall.jl/issues/139
-# for details
-# myPath = ["-Djava.class.path=$(joinpath(dirname(@__DIR__), "jars","View5D.jar"))"]
-# print("Initializing JavaCall with callpath: $myPath\n")
-# JavaCall.init(myPath)
-# JavaCall.init(["-Djava.class.path=$(joinpath(@__DIR__, "jars","view5d"))"])
+""" @enum DisplayMode
+diplay modes are subtyped from this abstract type. All modes are subtypes of DisplayMode
 
-# const View5D_jar = joinpath(dirname(@__DIR__), "jars","View5D.jar")
+* DisplNew, opens a new viewer
+* DisplAddElement, adds a new element to an existing viewer
+* DisplAddTime, adds a new timepoint to an existing viewer
+* DisplReplace, replaces data in an existing viewer
+"""
+@enum DisplayMode DisplNew DisplAddElement DisplAddTime DisplReplace
+
+""" @enum PanelChoices
+this applies to keys sent to the viewer, which can be send to a choice of windows
+
+* PanelMain, refers to the main panel (e.g. XY)
+* PanelElement, refers to the element panel (bottom right corner)
+"""
+@enum PanelChoices PanelMain PanelElement
+
 
 # This is the proper way to do this via artifacts:
 rootpath = artifact"View5D-jar"
@@ -581,7 +589,7 @@ end
 
 
 """
-    process_keys(KeyList::String, myviewer=nothing; mode="main")
+    process_keys(KeyList::String, myviewer=nothing; mode=PanelMain)
 Sends key strokes to the viewer. This allows an easy remote-control of the viewer since almost all of its features can be controlled by key-strokes.
 Note that panel-specific keys (e.g."q": switching to plot-diplay) are currently not supported.
 For a discription of keys look at the context menu in the viewer. 
@@ -590,20 +598,20 @@ More information at https://nanoimaging.de/View5D
 # Arguments
 * `KeyList`: list of keystrokes (as a String) to successively be processed by the viewer. An update is automatically called afterwards.
 * `myviewer`: the viewer to which the keys are send.
-* `mode`: determines to which panel the keys are sent to. Currently supported: "main" (default) or "element"
+* `mode`: determines to which panel the keys are sent to. Currently supported: PanelMain (default) or "element"
 
 # See also
 * `process_key_main_window()`: processes a single key in the main window
 * `process_key_element_window()`: processes a single key in the element window
 """
-function process_keys(KeyList::String, myviewer=nothing; mode="main")
+function process_keys(KeyList::String, myviewer=nothing; mode::PanelChoices = PanelMain)
     for k in KeyList
-        if mode=="main"
+        if mode==PanelMain
             process_key_main_window(k, myviewer)
-        elseif mode=="element"
+        elseif mode==PanelElement
             process_key_element_window(k, myviewer)
         else
-            throw(ArgumentError("unsupported mode $mode. Use `main` or `element`"))
+            throw(ArgumentError("unsupported mode $mode. Use `PanelMain` or `PanelElement`"))
         end
         update_panels(myviewer)
     end
@@ -724,9 +732,9 @@ function get_viewer(viewer=nothing)
     end
 end
 
-function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false; 
+function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplNew, isCpx=false; 
          element=0, mytime=0, name=nothing)
-    if mode == "add_element" && size(myJArr,4)>1  # for more than one element and time added simulateneously we need to add the elements individually
+    if mode == DisplAddElement && size(myJArr,4)>1  # for more than one element and time added simulateneously we need to add the elements individually
         v = nothing
         for e in 1:size(myJArr,4)
             v = start_viewer(viewer, collect(myJArr[:,:,:,e:e,:]), jtype, mode, isCpx, element=element, mytime=mytime, name=name)
@@ -748,15 +756,15 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
     end
 
     if isnothing(viewer)  # checks about the need to create a new viewer
-        mode = "new"  # ignores the user request and opens a new viewer to avoid a problem in the View5D java program
+        mode = DisplNew  # ignores the user request and opens a new viewer to avoid a problem in the View5D java program
     else 
         vs = viewer_sizes[viewer][1:3]
         vn = [sizeX,sizeY,sizeZ]
         if isnothing(vs) || vs != vn
-            if mode != "new"
+            if mode != DisplNew
                 @warn "Nonmatching new size $vn does not agree to current size $vs. Startin new viewer instead."
             end
-            mode = "new"  # ignores the user request and opens a new viewer to avoid a problem in the View5D java program
+            mode = DisplNew  # ignores the user request and opens a new viewer to avoid a problem in the View5D java program
         end
     end
 
@@ -764,7 +772,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
         viewer=V
     end
 
-    if mode == "new"
+    if mode == DisplNew
         command = string("Start5DViewer", addCpx)
         myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint),
                         myJArr[:], sizeX, sizeY, sizeZ, sizeE, sizeT);
@@ -779,7 +787,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
         end
         set_elements_linked(false,myviewer)
         set_times_linked(true,myviewer)
-    elseif mode == "replace"
+    elseif mode == DisplReplace
         command = string("ReplaceData", addCpx)
         #@show viewer 
         for t in 0:sizeE-1
@@ -791,7 +799,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
             end
         end
         myviewer = viewer
-    elseif mode == "add_element"
+    elseif mode == DisplAddElement
         command = string("AddElement", addCpx)
         nt = get_num_times(viewer)
         if sizeT != nt
@@ -811,7 +819,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
                 set_element_name(E, name, myviewer)
             end
         end
-    elseif mode == "add_time"
+    elseif mode == DisplAddTime
         ne = get_num_elements(viewer)
         if sizeE != ne
             throw(ArgumentError("Added times, the number of elements $ne in the viewer need to corrspond to the time dimension of this data $sizeE."))
@@ -833,7 +841,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode="new", isCpx=false;
             end
         end
     else
-        throw(ArgumentError("unknown mode $mode, choose new, replace, add_element or add_time"))
+        throw(ArgumentError("unknown mode $mode, choose `DisplNew`, `DisplReplace`, `DisplAddElement` or `DisplAddTime`"))
     end
     to_front(myviewer)
     return myviewer
@@ -847,7 +855,7 @@ function add_phase(data, start_element=1, viewer=nothing; name=nothing)
         phases = 180 .*(angle.(data).+pi)./pi  # in degrees
         # data.unit.append("deg")  # dirty trick
         if get_num_times(viewer) == 1
-            viewer = view5d(phases, viewer; gamma=1.0, mode="add_element", element=ne+E+1, name=name)
+            viewer = view5d(phases, viewer; gamma=1.0, mode=DisplAddElement, element=ne+E+1, name=name)
             # all color updates need to only be done the first time
             set_element(-1, viewer)
             process_keys("cccccccccccc", viewer) # toggle color mode 12x to reach the cyclic colormap
@@ -857,7 +865,7 @@ function add_phase(data, start_element=1, viewer=nothing; name=nothing)
             el = ne+E
             ti = get_num_times(viewer)-1
             # @show "replacing $start_element, $E, $el, $ti "
-            viewer = view5d(phases, viewer; gamma=1.0, mode="replace", element=el, time=ti, name=name)
+            viewer = view5d(phases, viewer; gamma=1.0, mode=DisplReplace, element=el, time=ti, name=name)
         end
         if isnothing(name)
             set_value_name("phase", viewer;element=ne+E)
@@ -889,7 +897,7 @@ end
 
 """
     view5d(data :: AbstractArray, viewer=nothing; 
-         gamma=nothing, mode="new", element=0, time=0, 
+         gamma=nothing, mode=DisplNew, element=0, time=0, 
          show_phase=false, keep_zero=false, name=nothing, title=nothing)
 
 Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
@@ -898,17 +906,17 @@ For details see https://nanoimaging.de/View5D
 
 # Arguments
 * `data`: the array data to display. A large range of datatypes (including Complex32 and UInt16) is supported.
-* `viewer`: of interest only for modes "replace" and "add_element". This viewer instance (as returned by previous calls) is used for display.
+* `viewer`: of interest only for modes DisplReplace and DisplAddElement. This viewer instance (as returned by previous calls) is used for display.
         Note that this module keeps track of previously invoked viewers. By default the "viewers["active"]" is used.
 * `gamma`: The gamma settings to display this data with. By default the setting is 1.0 for real-valued data and 0.3 for complex valued data.
 * `mode`: allows the user to switch between display modes by either 
-    `mode="new"` (default): invoking a new View5D.view5d instance to display `data` in
-    `mode="replace"`: replacing a single element and time position by `data`. Useful to observe iterative changes.
-    `mode="add_element"`, `mode="add_time"`: adds a single (!) element (or timepoint) to the viewer. This can be useful for keeping track of a series of iterative images.
-    Note that the modes "replace", "add_element" adn "add_time" only work with a viewer that was previously created via "new".
+    `mode=DisplNew` (default): invoking a new View5D.view5d instance to display `data` in
+    `mode=DisplReplace`: replacing a single element and time position by `data`. Useful to observe iterative changes.
+    `mode=DisplAddElement`, `mode=DisplAddTime`: adds a single (!) element (or timepoint) to the viewer. This can be useful for keeping track of a series of iterative images.
+    Note that the modes DisplReplace, DisplAddElement adn DisplAddTime only work with a viewer that was previously created via DisplNew.
     Via the "viewer" argument, a specific viewer can be selected. By default the last previously created one is active.
-    Note also that it is the user's responsibility to NOT change the size and data-type of the data to display in the modes "replace" and "add_element".
-* `element`, `time`: used for mode "replace" to specify which element and and time position needs to be replaced. 
+    Note also that it is the user's responsibility to NOT change the size and data-type of the data to display in the modes DisplReplace and DisplAddElement.
+* `element`, `time`: used for mode DisplReplace to specify which element and and time position needs to be replaced. 
 * `show_phase`: determines whether for complex-valued data an extra phase channel is added in multiplicative mode displaying the phase as a value colormap
 * `keep_zero`: if true, the brightness display is initialized with a minimum of zero. See also: `set_min_max_thresh()`.
 * `name`: if not nothing, sets the name of the added data. The can be useful debug information.
@@ -936,7 +944,7 @@ julia> using IndexFunArrays
 julia> view5d(exp_ikx((100,100),shift_by=(2.3,5.77)).+0, show_phase=true)  # shows a complex-valued phase ramp with cyclic colormap
 ```
 """
-function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
+function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
     if ! JavaCall.isloaded()        
         # Uses classpath set in __init__
         JavaCall.init()
@@ -971,7 +979,7 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new"
         set_title(title)
     end
     if show_phase && myDataType <: Complex
-        if mode=="add_time"
+        if mode==DisplAddTime
             add_phase(data, 1, myviewer, name=name)
         else
             add_phase(data, size(data,4), myviewer, name=name)
@@ -983,7 +991,7 @@ end
 
 """
     vv(data :: AbstractArray, viewer=nothing; 
-         gamma=nothing, mode="new", element=0, time=0, 
+         gamma=nothing, mode=DisplNew, element=0, time=0, 
          show_phase=true, keep_zero=false, title=nothing)
 
 Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
@@ -992,7 +1000,7 @@ For details see https://nanoimaging.de/View5D
 This is just a shorthand for the function `view5d`. See `view5d` for arguments description.
 See documentation of `view5d` for explanation of the parameters.
 """
-function vv(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
+function vv(data :: AbstractArray, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
     view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
@@ -1011,7 +1019,7 @@ using Base
 
 """
     vp(data :: AbstractArray, viewer=nothing; 
-         gamma=nothing, mode="new", element=0, time=0, 
+         gamma=nothing, mode=DisplNew, element=0, time=0, 
          show_phase=true, keep_zero=false, title=nothing)
 
 Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
@@ -1020,7 +1028,7 @@ For details see https://nanoimaging.de/View5D
 This is just a shorthand (with `show_phase=true`) for the function `view5d`. See `view5d` for arguments description.
 See documentation of `view5d` for explanation of the parameters.
 """
-function vp(data :: AbstractArray, viewer=nothing; gamma=nothing, mode="new", element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
+function vp(data :: AbstractArray, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
     view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
@@ -1040,10 +1048,10 @@ See documentation of `view5d` for explanation of the parameters.
 function ve(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, elements_linked=false)
     viewer = get_viewer(viewer)
     if isnothing(viewer)
-        vv(data, viewer; gamma=gamma, mode="new", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+        vv(data, viewer; gamma=gamma, mode=DisplNew, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     else
         set_elements_linked(elements_linked, viewer)
-        vv(data, viewer; gamma=gamma, mode="add_element", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+        vv(data, viewer; gamma=gamma, mode=DisplAddElement, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     end
 end
 
@@ -1069,10 +1077,10 @@ created data 3
 function vt(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, times_linked=false)
     viewer = get_viewer(viewer);
     if isnothing(viewer)
-        vv(data, viewer; gamma=gamma, mode="new", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+        vv(data, viewer; gamma=gamma, mode=DisplNew, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     else
         set_times_linked(times_linked, viewer)
-        vv(data, viewer; gamma=gamma, mode="add_time", element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+        vv(data, viewer; gamma=gamma, mode=DisplAddTime, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     end
 end
 
