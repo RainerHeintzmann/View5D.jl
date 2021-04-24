@@ -34,7 +34,7 @@ export repaint, update_panels, to_front, hide_viewer, set_fontsize # , close_all
 export set_gamma, set_min_max_thresh
 export set_element, set_time, set_elements_linked, set_times_linked
 export set_element_name, get_num_elements, get_num_times, set_title
-export set_display_size, set_active_viewer, clear_active
+export set_display_size, set_active_viewer, set_properties, clear_active
 export get_viewer_history, close_all, to_front_all
 export export_marker_lists, import_marker_lists, delete_all_marker_lists, export_markers_string, empty_marker_list
 export DisplayMode, DisplAddElement, DisplAddTime, DisplNew, DisplReplace
@@ -733,7 +733,7 @@ function get_viewer(viewer=nothing)
 end
 
 function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplNew, isCpx=false; 
-         element=0, mytime=0, name=nothing)
+         element=0, mytime=0, name=nothing, properties=nothing)
     if mode == DisplAddElement && size(myJArr,4)>1  # for more than one element and time added simulateneously we need to add the elements individually
         v = nothing
         for e in 1:size(myJArr,4)
@@ -777,13 +777,17 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
         myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint),
                         myJArr[:], sizeX, sizeY, sizeZ, sizeE, sizeT);
         viewer_sizes[myviewer] = [sizeX,sizeY,sizeZ,sizeE,sizeT]
+
+        if !isnothing(properties)
+            set_properties(properties, myviewer, element=element)
+        else
+            set_title("View5D", myviewer)
+        end        
         if !isnothing(name)
             for E in 0:get_num_elements(myviewer)-1
                 set_element_name(E, name, myviewer)
             end
             set_title(name, myviewer)
-        else
-            set_title("View5D", myviewer)
         end
         set_elements_linked(false,myviewer)
         set_times_linked(true,myviewer)
@@ -798,6 +802,10 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
                 end
             end
         end
+        if !isnothing(properties)
+            set_properties(properties, myviewer, element=element)
+        end        
+
         myviewer = viewer
     elseif mode == DisplAddElement
         command = string("AddElement", addCpx)
@@ -819,6 +827,9 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
                 set_element_name(E, name, myviewer)
             end
         end
+        if !isnothing(properties)
+            set_properties(properties, myviewer, element=element)
+        end
     elseif mode == DisplAddTime
         ne = get_num_elements(viewer)
         if sizeE != ne
@@ -839,6 +850,9 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
                     set_element_name(e, name, myviewer)
                 end
             end
+            if !isnothing(properties)
+                set_properties(properties, myviewer, element=element)
+            end        
         end
     else
         throw(ArgumentError("unknown mode $mode, choose `DisplNew`, `DisplReplace`, `DisplAddElement` or `DisplAddTime`"))
@@ -896,10 +910,60 @@ function expand_size(sz::NTuple, N)
 end
 
 """
+    set_properties(properties, myviewer; element)
+sets various properties in the viewer in dependence of present entries in the `properties` dictionary.
+Arguments:
+* properties: The dictionary containing the property information as for example returned by `BioformatsLoader`. See below for details.
+* myviewer: optional argument; viewer to apply the settings to.
+* element: the element to start with
+* time: the time to start with
+Currently used properties are:
+    `properties[:Pixels][:PhysicalSizeYUnit]`
+    `properties[:Pixels][:PhysicalSizeXUnit]`
+    `properties[:Pixels][:PhysicalSizeZUnit]`
+"""
+function set_properties(properties, myviewer=nothing; element=0)
+    myviewer=get_viewer(myviewer)
+    if haskey(properties,:Name) 
+        set_title(properties[:Name], myviewer)
+    end
+    if haskey(properties,:Pixels)
+        Pixels = properties[:Pixels]
+        unitX = haskey(Pixels, :PhysicalSizeXUnit) ? Pixels[:PhysicalSizeXUnit] : "unknown"
+        unitY = haskey(Pixels, :PhysicalSizeYUnit) ? Pixels[:PhysicalSizeYUnit] : "unknown"
+        unitZ = haskey(Pixels, :PhysicalSizeZUnit) ? Pixels[:PhysicalSizeZUnit] : "unknown"
+        unitE = "unknown"
+        unitT = "unknown"
+        scaX = haskey(Pixels, :PhysicalSizeX) ? Pixels[:PhysicalSizeX] : 1.0
+        scaY = haskey(Pixels, :PhysicalSizeY) ? Pixels[:PhysicalSizeY] : 1.0
+        scaZ = haskey(Pixels, :PhysicalSizeZ) ? Pixels[:PhysicalSizeZ] : 1.0
+        scaE = 1.0 # haskey(Pixels, :PhysicalSizeZ) ? Pixels[:PhysicalSizeZ] : "unknown"
+        scaT = 1.0 #haskey(Pixels, :PhysicalSizeZ) ? Pixels[:PhysicalSizeZ] : "unknown"
+        scaV = 1.0 # value scale
+        nameV = "intensity"
+        unitV = "a.u."
+        axes_scales = (scaX,scaY,scaZ,scaE,scaT)
+        axes_names = ["X", "Y", "Z", "E", "T"]
+        axes_units=[unitX,unitY,unitZ,unitE,unitT]
+    set_axis_scales_and_units(axes_scales,scaV, nameV, unitV, 
+                                axes_names, axes_units, myviewer,element=element,time=0)
+    if haskey(Pixels,:Channel)
+        Channels = Pixels[:Channel]
+        for c in Channels
+            name = haskey(c, :ExcitationWavelength) ? "$(c[:ExcitationWavelength])" : "color $element"
+            name = name * "/" * (haskey(c, :EmissionWavelength) ? "$(c[:EmissionWavelength])" : "color $element")
+            set_element_name(element,name, myviewer)
+            element = element + 1
+        end
+    end
+    end
+end
+
+"""
     view5d(data :: AbstractArray, viewer=nothing; 
          gamma=nothing, mode=DisplNew, element=0, time=0, 
-         show_phase=false, keep_zero=false, name=nothing, title=nothing)
-
+         show_phase=false, keep_zero=false, name=nothing, title=nothing, properties=nothing)
+         
 Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
 The viewer is interactive and support a wide range of user actions. 
 For details see https://nanoimaging.de/View5D
@@ -921,6 +985,7 @@ For details see https://nanoimaging.de/View5D
 * `keep_zero`: if true, the brightness display is initialized with a minimum of zero. See also: `set_min_max_thresh()`.
 * `name`: if not nothing, sets the name of the added data. The can be useful debug information.
 * `title`: if not nothing, sets the initial title of the display window.
+* `properties`: This is expected to be a Dictionary such as returned by `BioformatsLoader`. See `set_properties()` for details on the used entries.
 
 # Returns
 An instance (JavaCall.JavaObject) or the viewer, which can be used for further manipulation.
@@ -944,7 +1009,7 @@ julia> using IndexFunArrays
 julia> view5d(exp_ikx((100,100),shift_by=(2.3,5.77)).+0, show_phase=true)  # shows a complex-valued phase ramp with cyclic colormap
 ```
 """
-function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
+function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, properties=nothing)
     if ! JavaCall.isloaded()        
         # Uses classpath set in __init__
         JavaCall.init()
@@ -959,13 +1024,13 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode::Disp
     # listmethods(V,"Start5DViewer")
     if myDataType <: Complex
         jArr = Vector{jfloat}
-        myviewer = start_viewer(viewer, myJArr,jfloat, mode, true, name=name, element=element, mytime=time)
+        myviewer = start_viewer(viewer, myJArr,jfloat, mode, true, name=name, element=element, mytime=time, properties=properties)
         set_min_max_thresh(0.0, maximum(abs.(myJArr)), myviewer, element = get_num_elements(myviewer)-1)
         if isnothing(gamma)
             gamma=0.3
         end
     else
-        myviewer = start_viewer(viewer, myJArr,myDataType, mode, name=name, element=element, mytime=time)
+        myviewer = start_viewer(viewer, myJArr,myDataType, mode, name=name, element=element, mytime=time, properties=properties)
     end
     set_active_viewer(myviewer)
     # process_keys("Ti12", myviewer)   # to initialize the zoom and trigger the display update
@@ -987,6 +1052,24 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode::Disp
     end
     update_panels(myviewer)
     return myviewer
+end
+
+# special version for Bioformats type data
+function view5d(data :: Vector, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
+    try
+        if typeof(data[1].data) <:AbstractArray 
+            dat = permutedims(data[1].data, (3,4,2,5,1))
+            prop=nothing
+            try prop=data[1].properties
+            catch e
+            end
+            view5d(dat, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title, properties=prop)
+        else
+            @warn("unknown type to display")
+        end
+    catch e
+        @warn("unknown type to display")
+    end
 end
 
 """
