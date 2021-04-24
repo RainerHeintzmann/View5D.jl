@@ -14,6 +14,13 @@ julia> ] add https://github.com/RainerHeintzmann/View5D.jl
 
 # Quick Overview
 
+Here is an image of how the viewer displays multidimensional data using connected orthogonal views.
+Note the various statistical information included real-space units (µm) displayed in the lower right information panel.
+And the bottom right panel displaying the various colormaps of this 4-channel image (data curtasy Kai Schink et al.).
+
+![image](https://user-images.githubusercontent.com/7559915/115965825-3a95ba80-a52b-11eb-97d2-a7eea8dd809b.png)
+
+
 ## Quick Examples
 ```julia
   julia> using View5D
