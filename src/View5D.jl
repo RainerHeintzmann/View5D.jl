@@ -77,6 +77,8 @@ function __init__()
     JavaCall.addClassPath(View5D_jar)
 end
 
+Displayable = Union{Tuple,AbstractArray}
+
 is_complex(mat) = eltype(mat) <: Complex
 
 # expanddims(x, ::Val{N}) where N = reshape(x, (size(x)..., ntuple(x -> 1, N)...))
@@ -778,17 +780,17 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
                         myJArr[:], sizeX, sizeY, sizeZ, sizeE, sizeT);
         viewer_sizes[myviewer] = [sizeX,sizeY,sizeZ,sizeE,sizeT]
 
-        if !isnothing(properties)
-            set_properties(properties, myviewer, element=element)
-        else
-            set_title("View5D", myviewer)
-        end        
         if !isnothing(name)
             for E in 0:get_num_elements(myviewer)-1
                 set_element_name(E, name, myviewer)
             end
             set_title(name, myviewer)
+        else
+            set_title("View5D", myviewer)
         end
+        if !isnothing(properties)  # properties win over name tags for elements
+            set_properties(properties, myviewer, element=element)
+        end        
         set_elements_linked(false,myviewer)
         set_times_linked(true,myviewer)
     elseif mode == DisplReplace
@@ -960,7 +962,7 @@ function set_properties(properties, myviewer=nothing; element=0)
 end
 
 """
-    view5d(data :: AbstractArray, viewer=nothing; 
+    view5d(data, viewer=nothing; 
          gamma=nothing, mode=DisplNew, element=0, time=0, 
          show_phase=false, keep_zero=false, name=nothing, title=nothing, properties=nothing)
          
@@ -970,6 +972,9 @@ For details see https://nanoimaging.de/View5D
 
 # Arguments
 * `data`: the array data to display. A large range of datatypes (including Complex32 and UInt16) is supported.
+           `data` can also be an `NTuple` which causes the viewer to be called for each element of the tuple.
+           `data` can also be of type `Image`
+           `data` can also be `ImageMetadata.ImageMeta` as returned by the `bf_import` function of the package `BioformatsLoader.jl`.
 * `viewer`: of interest only for modes DisplReplace and DisplAddElement. This viewer instance (as returned by previous calls) is used for display.
         Note that this module keeps track of previously invoked viewers. By default the "viewers["active"]" is used.
 * `gamma`: The gamma settings to display this data with. By default the setting is 1.0 for real-valued data and 0.3 for complex valued data.
@@ -1056,7 +1061,7 @@ end
 
 # special version for Bioformats type data
 function view5d(data :: Vector, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
-    try
+    if startswith("$(typeof(data[1]))","ImageMetadata.ImageMeta")
         if typeof(data[1].data) <:AbstractArray 
             dat = permutedims(data[1].data, (3,4,2,5,1))
             prop=nothing
@@ -1067,13 +1072,19 @@ function view5d(data :: Vector, viewer=nothing; gamma=nothing, mode::DisplayMode
         else
             @warn("unknown type to display")
         end
-    catch e
+    else
         @warn("unknown type to display")
     end
 end
 
+function view5d(datatuple :: Tuple, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
+    for data in datatuple
+        view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+    end
+end
+
 """
-    vv(data :: AbstractArray, viewer=nothing; 
+    vv(data, viewer=nothing; 
          gamma=nothing, mode=DisplNew, element=0, time=0, 
          show_phase=true, keep_zero=false, title=nothing)
 
@@ -1083,13 +1094,11 @@ For details see https://nanoimaging.de/View5D
 This is just a shorthand for the function `view5d`. See `view5d` for arguments description.
 See documentation of `view5d` for explanation of the parameters.
 """
-function vv(data :: AbstractArray, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
+function vv(data :: Displayable, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
     view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
-
-
-function display_array(arr::AbstractArray{N,T}, name, disp=vv) where {N,T}
+function display_array(arr::Displayable, name, disp=vv) # AbstractArray{N,T} where {N,T}
     disp(arr,name=name)
     return "in_view5d"
 end
@@ -1101,7 +1110,7 @@ end
 using Base
 
 """
-    vp(data :: AbstractArray, viewer=nothing; 
+    vp(data, viewer=nothing; 
          gamma=nothing, mode=DisplNew, element=0, time=0, 
          show_phase=true, keep_zero=false, title=nothing)
 
@@ -1111,12 +1120,12 @@ For details see https://nanoimaging.de/View5D
 This is just a shorthand (with `show_phase=true`) for the function `view5d`. See `view5d` for arguments description.
 See documentation of `view5d` for explanation of the parameters.
 """
-function vp(data :: AbstractArray, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
+function vp(data::Displayable, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
     view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
 """
-    ve(data :: AbstractArray, viewer=nothing; 
+    ve(data, viewer=nothing; 
          gamma=nothing, element=0, time=0, 
          show_phase=true, keep_zero=false, title=nothing, elements_linked=false)
 
@@ -1128,7 +1137,7 @@ See documentation of `view5d` for explanation of the parameters.
 
 `elements_linked`: determines wether all elements are linked together (no indidual scaling and same color)
 """
-function ve(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, elements_linked=false)
+function ve(data::Displayable, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, elements_linked=false)
     viewer = get_viewer(viewer)
     if isnothing(viewer)
         vv(data, viewer; gamma=gamma, mode=DisplNew, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
@@ -1139,7 +1148,7 @@ function ve(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, tim
 end
 
 """
-    vt(data :: AbstractArray, viewer=nothing; 
+    vt(data, viewer=nothing; 
          gamma=nothing, element=0, time=0, 
          show_phase=true, keep_zero=false, title=nothing, times_linked=false)
 
@@ -1157,7 +1166,7 @@ created data 3
 
 ```
 """
-function vt(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, times_linked=false)
+function vt(data :: Displayable, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, times_linked=false)
     viewer = get_viewer(viewer);
     if isnothing(viewer)
         vv(data, viewer; gamma=gamma, mode=DisplNew, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
@@ -1168,7 +1177,7 @@ function vt(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, tim
 end
 
 """
-    vep(data :: AbstractArray, viewer=nothing; 
+    vep(data, viewer=nothing; 
          gamma=nothing, element=0, time=0, 
          show_phase=true, keep_zero=false, title=nothing)
 
@@ -1178,7 +1187,7 @@ For details see https://nanoimaging.de/View5D
 This is just a shorthand (with `show_phase=true`) adding an element to an existing viewer (mode=`add_element`) for the function `view5d`. See `view5d` for arguments description.
 See documentation of `view5d` for explanation of the parameters.
 """
-function vep(data :: AbstractArray, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
+function vep(data :: Displayable, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
     ve(data, viewer; gamma=gamma, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
