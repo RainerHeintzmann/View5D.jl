@@ -665,7 +665,7 @@ function to_jtype(anArray)
     elseif isa(ArrayElement, UInt8)
         jtype=jbyte  # fake it...
         anArray = reinterpret(Int8,anArray)
-    elseif isa(ArrayElement, Int8)
+    elseif isa(ArrayElement, Int8) || isa(ArrayElement, Bool)
         jtype=jbyte
     elseif isa(ArrayElement, UInt16)
         jtype=jchar
@@ -679,6 +679,9 @@ function to_jtype(anArray)
         jtype=jdouble
     elseif isa(ArrayElement, UInt)
         jtype=jdouble
+    else
+        mytype= typeof(ArrayElement)
+        throw(ArgumentError("Datatype $mytype to display is not supported"))
     end
     # mysize = prod(size(anArray))
     anArray = expanddims(anArray,5) # permutedims(expanddims(anArray,5),(2,1,3,4,5))  # 
