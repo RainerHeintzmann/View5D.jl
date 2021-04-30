@@ -35,9 +35,10 @@ export set_gamma, set_min_max_thresh
 export set_element, set_time, set_elements_linked, set_times_linked
 export set_element_name, get_num_elements, get_num_times, set_title
 export set_display_size, set_active_viewer, set_properties, clear_active
-export get_viewer_history, close_all, to_front_all
+export get_viewer_history, close_all, hide_all, to_front_all
 export export_marker_lists, import_marker_lists, delete_all_marker_lists, export_markers_string, empty_marker_list
 export DisplayMode, DisplAddElement, DisplAddTime, DisplNew, DisplReplace
+export list_methods, java_memory
 #export init_layout, invalidate 
 
 using JavaCall
@@ -74,8 +75,15 @@ const View5D_jar = joinpath(rootpath, "View5D_v2.3.1.jar")
 function __init__()
     # This has to be in __init__ and is invoked by `using View5D`
     # Allows other packages to addClassPath before JavaCall.init() is invoked
-    JavaCall.addClassPath(View5D_jar)
+    devel_path = joinpath(rootpath, "..","View5D.jar")
+    if isfile(devel_path)
+        print("Found development version of View5D in the artifact directory. Using this.")
+        JavaCall.addClassPath(devel_path)
+    else
+        JavaCall.addClassPath(View5D_jar)
+    end
 end
+
 
 Displayable = Union{Tuple,AbstractArray}
 
@@ -83,6 +91,61 @@ is_complex(mat) = eltype(mat) <: Complex
 
 # expanddims(x, ::Val{N}) where N = reshape(x, (size(x)..., ntuple(x -> 1, N)...))
 expanddims(x, num_of_dims) = reshape(x, (size(x)..., ntuple(x -> 1, (num_of_dims - ndims(x)))...))
+
+""" 
+    list_methods(V, text=nothing)
+lists all java methods in the underlying view5d.jar containing "text"
+"""
+function list_methods(text=nothing, V=nothing)
+    if isnothing(V)
+        V=get_viewer(V)
+    end
+    mystrings =listmethods(V)
+    r=""
+    for s in mystrings 
+        if !isnothing(text)
+            r = r * (contains("$s",text) ? "$s\n" : "")
+        else
+            r = r * "$s\n"
+        end
+    end        
+    print(r)
+end
+
+"""
+    java_memory(verbose=true)
+prints the free and total memory of the JVM
+"""
+function java_memory(verbose=true)
+    RT = @jimport java.lang.Runtime
+    Runtime = jcall(RT, "getRuntime", RT, ());
+    jcall(Runtime, "gc", Nothing, ());
+    free_mem = jcall(Runtime, "freeMemory", jlong, ());
+    total_mem = jcall(Runtime, "totalMemory", jlong, ());
+    if verbose
+        print("Total Memory: $(total_mem/1000000) Mb\n")
+        print("Free Memory: $(free_mem/1000000) Mb\n")
+        print("Used fraction: $(100*(total_mem-free_mem) / total_mem) percent\n")
+    end
+    return free_mem, total_mem
+end
+
+function close_viewer(myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    if myviewer==get_active_viewer()
+        clear_active()
+    end
+    h = viewers["history"]
+    deleteat!(h, findall(x-> x == myviewer, h)) # remove this viewer from the history.
+    try
+        jcall(myviewer, "closeAll", Nothing, ()); # for some reason it throws an exception even if deleting everything
+    catch e
+    end
+    #jcall(myviewer, "removeAll", Nothing, ());
+    RT = @jimport java.lang.Runtime
+    Runtime = jcall(RT, "getRuntime", RT, ());
+    jcall(Runtime, "gc", Nothing, ());
+end
 
 """
     set_gamma(gamma=1.0, myviewer=nothing; element=0)
@@ -505,26 +568,39 @@ end
 
 """
     hide(myviewer=nothing)
-hides the viewer. It can be shown again by calling "to_front"
+hides the viewer. It can be shown again by calling "to_front".
 # Arguments
 * `myviewer`: the viewer to apply this to. By default the active viewer is used
 """
 function hide_viewer(myviewer=nothing)
     myviewer=get_viewer(myviewer)
     if !isnothing(myviewer)
-        jcall(myviewer, "closeAll", Nothing, ());
-        # jcall(myviewer, "hide", Nothing, ());   # no idea why this does not work at the moment
+        jcall(myviewer, "minimize", Nothing, ());   # no idea why this does not work at the moment
     end
 end
 
 """
     close_all(myviewer=nothing)
-hides all viewers that were opened using the history.
+closes all viewers that were opened using the history and frees the memory.
 
 # Arguments
 * `myviewer`: the viewer to apply this to. By default the active viewer is used
 """
 function close_all(myviewer=nothing)
+    close_viewer()
+    for v in viewers["history"]
+        close_viewer(v)
+    end
+end
+
+"""
+    hide_all(myviewer=nothing)
+hides all viewers that were opened using the history.
+
+# Arguments
+* `myviewer`: the viewer to apply this to. By default the active viewer is used
+"""
+function hide_all(myviewer=nothing)
     hide_viewer()
     for v in viewers["history"]
         hide_viewer(v)
@@ -718,14 +794,13 @@ function clear_active()
 end
 
 function set_active_viewer(myviewer)
-    if haskey(viewers,"active")
-        if haskey(viewers,"history")
-            push!(viewers["history"], viewers["active"]) 
-        else
-            viewers["history"]= [viewers["active"] ]
-        end
-    end
     viewers["active"] = myviewer
+    if haskey(viewers,"history")
+        push!(viewers["history"],  myviewer) 
+    else
+        viewers["history"] = Any[] # needs to be Any here to avoid type conversions
+        push!(viewers["history"],  myviewer) 
+    end
 end
 
 # if newsize does not agree to active size a new viewer is returned instead
@@ -740,11 +815,10 @@ end
 function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplNew, isCpx=false; 
          element=0, mytime=0, name=nothing, properties=nothing)
     if mode == DisplAddElement && size(myJArr,4)>1  # for more than one element and time added simulateneously we need to add the elements individually
-        v = nothing
         for e in 1:size(myJArr,4)
-            v = start_viewer(viewer, collect(myJArr[:,:,:,e:e,:]), jtype, mode, isCpx, element=element, mytime=mytime, name=name)
+            viewer = start_viewer(viewer, collect(myJArr[:,:,:,e:e,:]), jtype, mode, isCpx, element=element, mytime=mytime, name=name)
         end
-        return v
+        return viewer
     end
     jArr = Vector{jtype}
     #@show size(myJArr)
@@ -777,7 +851,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
         viewer=V
     end
 
-    if mode == DisplNew
+    if mode == DisplNew # create a new viewer
         command = string("Start5DViewer", addCpx)
         myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint),
                         myJArr[:], sizeX, sizeY, sizeZ, sizeE, sizeT);
@@ -810,7 +884,6 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
         if !isnothing(properties)
             set_properties(properties, myviewer, element=element)
         end        
-
         myviewer = viewer
     elseif mode == DisplAddElement
         command = string("AddElement", addCpx)
@@ -820,17 +893,18 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
         end
         size3d = sizeX*sizeY*sizeZ
         for e in 0:sizeE-1
-            myviewer=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
+            dummy=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
                             myJArr[e*size3d+1:end],sizeX, sizeY, sizeZ, sizeE, sizeT); 
             viewer_sizes[viewer][4] = get_num_elements(viewer)  # to also account for user deletes
             viewer_sizes[viewer][5] = get_num_times(viewer)
-            viewer_sizes[myviewer] = viewer_sizes[viewer] # one would assume that the reference does not change but it does ...
+            # viewer_sizes[myviewer] = viewer_sizes[viewer] # one would assume that the reference does not change but it does ...
             set_element(-1) # go to the last element
-            process_keys("t",myviewer)   
+            process_keys("t",viewer)   
             if !isnothing(name)
                 E = get_num_elements()-1
-                set_element_name(E, name, myviewer)
+                set_element_name(E, name, viewer)
             end
+            myviewer = viewer
         end
         if !isnothing(properties)
             set_properties(properties, myviewer, element=element)
@@ -843,21 +917,22 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
         command = string("AddTime", addCpx)
         size4d = sizeX*sizeY*sizeZ*sizeE
         for t in 0:sizeT-1
-            myviewer=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
+            dummy=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
                             myJArr[t*size4d+1:end],sizeX, sizeY, sizeZ, sizeE, sizeT);
             viewer_sizes[viewer][5] = get_num_times(viewer)
-            viewer_sizes[myviewer] = viewer_sizes[viewer] # one would assume that the reference does not change but it does ...
+            # viewer_sizes[myviewer] = viewer_sizes[viewer] # one would assume that the reference does not change but it does ...
             set_time(-1) # go to the last element
             for e in 0: get_num_elements()-1 # just to normalize colors and set names
                 set_element(e) # go to the this element
-                process_keys("t",myviewer)
+                process_keys("t",viewer)
                 if !isnothing(name)
-                    set_element_name(e, name, myviewer)
+                    set_element_name(e, name, viewer)
                 end
             end
             if !isnothing(properties)
-                set_properties(properties, myviewer, element=element)
+                set_properties(properties, viewer, element=element)
             end        
+            myviewer = viewer
         end
     else
         throw(ArgumentError("unknown mode $mode, choose `DisplNew`, `DisplReplace`, `DisplAddElement` or `DisplAddTime`"))
