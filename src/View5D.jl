@@ -220,6 +220,32 @@ function set_element(myelement=-1, myviewer=nothing)
     update_panels(myviewer)
 end
 
+#=   DOES NOT WORK PROPERLY IN VIEW5D
+"""
+    set_set_position(pos, myviewer=nothing)
+
+sets the display position to mytime. A negative value means last timepoint
+# Arguments
+
+* `myelement`: The element position (color) to which the viewer display position is set to
+* `myviewer`: The viewer to which this function applies to. By default the active viewer is used.
+
+# Example
+```jldoctest
+julia> v2 = view5d(rand(Float64,6,5,4,3,1))
+
+julia> set_element(0) # return to the first color channel
+```
+"""
+function set_position(pos::NTuple{5,Int}, myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    # jcall(myviewer, "setPosition", Nothing, (jdouble,jdouble,jdouble,jdouble,jdouble), pos...);
+    jcall(myviewer, "setPosition", Nothing, (jint,jint,jint,jint,jint), pos...);
+    # update_panels(myviewer)
+end
+=#
+
+
 """
     set_element_name(element,new_name, myviewer=nothing)
 provides a new name to the `element` displayed in the viewer
@@ -841,10 +867,10 @@ function check_alive(viewer)
 end
 
 # if newsize does not agree to active size a new viewer is returned instead
-function get_viewer(viewer=nothing)
+function get_viewer(viewer=nothing; ignore_nothing=false)
     if isnothing(viewer)
         v = get_active_viewer()
-        if isnothing(v)
+        if (! ignore_nothing) && isnothing(v)
             throw(ArgumentError("View5D: no active viewer present."))
             # @warn "View5D: no active viewer exists."
         end
@@ -1258,7 +1284,7 @@ See documentation of `view5d` for explanation of the parameters.
 `elements_linked`: determines wether all elements are linked together (no indidual scaling and same color)
 """
 function ve(data::Displayable, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, elements_linked=false)
-    viewer = get_viewer(viewer)
+    viewer = get_viewer(viewer, ignore_nothing=true)
     if isnothing(viewer)
         vv(data, viewer; gamma=gamma, mode=DisplNew, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     else
@@ -1287,7 +1313,7 @@ created data 3
 ```
 """
 function vt(data :: Displayable, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, times_linked=false)
-    viewer = get_viewer(viewer);
+    viewer = get_viewer(viewer, ignore_nothing=true);
     if isnothing(viewer)
         vv(data, viewer; gamma=gamma, mode=DisplNew, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     else
