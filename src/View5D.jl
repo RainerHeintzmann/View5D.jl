@@ -38,8 +38,8 @@ export set_display_size, set_active_viewer, set_properties, clear_active
 export get_viewer_history, close_all, hide_all, to_front_all
 export export_marker_lists, import_marker_lists, delete_all_marker_lists, export_markers_string, empty_marker_list
 export DisplayMode, DisplAddElement, DisplAddTime, DisplNew, DisplReplace
-export list_methods, java_memory
-#export init_layout, invalidate 
+# export list_methods, java_memory
+# export init_layout, invalidate 
 
 using JavaCall
 using LazyArtifacts  # used to be Pkg.artifacts
@@ -130,15 +130,20 @@ function java_memory(verbose=true)
     return free_mem, total_mem
 end
 
-function close_viewer(myviewer=nothing)
-    myviewer=get_viewer(myviewer)
+function remove_viewer(myviewer)
     if myviewer==get_active_viewer()
         clear_active()
     end
     h = viewers["history"]
     deleteat!(h, findall(x-> x == myviewer, h)) # remove this viewer from the history.
+end
+
+function close_viewer(myviewer=nothing)
+    myviewer=get_viewer(myviewer)
+    remove_viewer(myviewer)
     try
-        jcall(myviewer, "closeAll", Nothing, ()); # for some reason it throws an exception even if deleting everything
+        process_keys("\$", myviewer)  # closes also the histogram window, which the commented line below does not do
+        # jcall(myviewer, "closeAll", Nothing, ()); # for some reason it throws an exception even if deleting everything
     catch e
     end
     #jcall(myviewer, "removeAll", Nothing, ());
@@ -793,23 +798,60 @@ function clear_active()
     set_active_viewer(nothing)
 end
 
-function set_active_viewer(myviewer)
+"""
+    set_active_viewer(myviewer=nothing)
+sets the active viewer to a specific instance. If called with no arguments the last entry in the viewer history is used.
+This is convenient, if an active viewer was closed (e.g. by the user) and we want to continue work on  a previous viewer.
+"""
+function set_active_viewer(myviewer=nothing)
     viewers["active"] = myviewer
     if haskey(viewers,"history")
+        if isnothing(myviewer)
+            myviewer = viewers["history"][end];
+            viewers["active"] = myviewer
+        end
         push!(viewers["history"],  myviewer) 
     else
         viewers["history"] = Any[] # needs to be Any here to avoid type conversions
-        push!(viewers["history"],  myviewer) 
+        push!(viewers["history"],  myviewer);
     end
+    return nothing
+end
+
+function check_alive(viewer)
+    if isnothing(viewer)
+        return nothing
+    else
+        try
+            # do NOT use the wrapped function as this causes an infinite loop
+            num_elem=jcall(viewer, "getNumElements", jint, ());
+            if num_elem >= 0
+                return viewer
+            else
+                @warn "View5D: viewer not existing."
+                remove_viewer(viewer)
+                return nothing
+            end
+        catch
+            @warn "View5D: viewer not existing."
+            remove_viewer(viewer)
+            return nothing
+        end
+    end    
 end
 
 # if newsize does not agree to active size a new viewer is returned instead
 function get_viewer(viewer=nothing)
     if isnothing(viewer)
-        v= get_active_viewer()
+        v = get_active_viewer()
+        if isnothing(v)
+            throw(ArgumentError("View5D: no active viewer present."))
+            # @warn "View5D: no active viewer exists."
+        end
     else
-        v= viewer
+        v = viewer
     end
+    v = check_alive(v)
 end
 
 function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplNew, isCpx=false; 
