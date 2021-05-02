@@ -44,6 +44,7 @@ export DisplayMode, DisplAddElement, DisplAddTime, DisplNew, DisplReplace
 using JavaCall
 using LazyArtifacts  # used to be Pkg.artifacts
 using Colors, ImageCore
+using AxisArrays, Unitful
 # using JavaShowMethods
 
 """ @enum DisplayMode
@@ -1099,6 +1100,9 @@ function set_properties(properties, myviewer=nothing; element=0)
                                 axes_names, axes_units, myviewer,element=element,time=0)
     if haskey(Pixels,:Channel)
         Channels = Pixels[:Channel]
+        if isa(Channels,Dict)
+            Channels=[Channels];
+        end
         for c in Channels
             name = haskey(c, :ExcitationWavelength) ? "$(c[:ExcitationWavelength])" : "color $element"
             name = name * "/" * (haskey(c, :EmissionWavelength) ? "$(c[:EmissionWavelength])" : "color $element")
@@ -1107,6 +1111,31 @@ function set_properties(properties, myviewer=nothing; element=0)
         end
     end
     end
+end
+
+function axes_to_properties(axes)
+    properties=Dict();
+    Pixels=Dict();
+    for ax in axes
+        name = axisnames(ax)[1]
+        vals = axisvalues(ax)[1] # is a Tuple of StepRange
+        s = vals.step.hi.val # get the step value
+        u = "$(unit(vals.step))"
+        if name == :x
+            Pixels[:PhysicalSizeXUnit] = u
+            Pixels[:PhysicalSizeX] = s
+        end
+        if name == :y
+            Pixels[:PhysicalSizeYUnit] = u
+            Pixels[:PhysicalSizeY] = s
+        end
+        if name == :z
+            Pixels[:PhysicalSizeZUnit] = u
+            Pixels[:PhysicalSizeZ] = s
+        end
+    end
+    properties[:Pixels]=Pixels
+    return properties
 end
 
 """
@@ -1163,6 +1192,9 @@ julia> view5d(exp_ikx((100,100),shift_by=(2.3,5.77)).+0, show_phase=true)  # sho
 ```
 """
 function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, properties=nothing)
+    if startswith("$(typeof(data))","ImageMeta")
+        return view5d_M(data , viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+    end
     if ! JavaCall.isloaded()        
         # Uses classpath set in __init__
         JavaCall.init()
@@ -1207,14 +1239,23 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode::Disp
     return myviewer
 end
 
-# special version for Bioformats type data
-function view5d(data :: Vector, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
-    if startswith("$(typeof(data[1]))","ImageMetadata.ImageMeta")
-        if typeof(data[1].data) <:AbstractArray 
-            dat = permutedims(data[1].data, (3,4,2,5,1))
+
+# special version for Bioformats or related data types 
+function view5d_M(data, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
+    if startswith("$(typeof(data))","ImageMeta")
+        if typeof(data.data) <:AbstractArray 
+            if ndims(data.data)==5
+                dat = permutedims(data.data, (3,4,2,5,1))
+            else
+                dat = data.data # do we need to switch xy?
+            end
             prop=nothing
-            try prop=data[1].properties
-            catch e
+            axs=nothing
+            if hasfield(typeof(dat),:axes) 
+                prop=axes_to_properties(dat.axes)
+            end
+            if hasfield(typeof(dat),:properties)
+                prop=dat.properties
             end
             view5d(dat, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title, properties=prop)
         else
@@ -1225,7 +1266,7 @@ function view5d(data :: Vector, viewer=nothing; gamma=nothing, mode::DisplayMode
     end
 end
 
-function view5d(datatuple :: Tuple, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
+function view5d(datatuple :: Union{Tuple, Vector}, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
     for data in datatuple
         view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     end
