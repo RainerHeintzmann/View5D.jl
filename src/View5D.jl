@@ -30,7 +30,7 @@ export view5d, vv, vp, vt, ve, vep, get_active_viewer
 export @vv, @ve, @vp, @vep, @vt
 export process_key_element_window, process_key_main_window, process_keys
 export set_axis_scales_and_units, set_value_unit, set_value_name
-export repaint, update_panels, to_front, hide_viewer, set_fontsize # , close_all
+export repaint, update_panels, to_front, hide_viewer, set_fontsize 
 export set_gamma, set_min_max_thresh
 export set_element, set_time, set_elements_linked, set_times_linked
 export set_element_name, get_num_elements, get_num_times, set_title
@@ -140,12 +140,12 @@ end
 
 function close_viewer(myviewer=nothing)
     myviewer=get_viewer(myviewer)
-    remove_viewer(myviewer)
     try
         process_keys("\$", myviewer)  # closes also the histogram window, which the commented line below does not do
         # jcall(myviewer, "closeAll", Nothing, ()); # for some reason it throws an exception even if deleting everything
     catch e
     end
+    remove_viewer(myviewer)
     #jcall(myviewer, "removeAll", Nothing, ());
     RT = @jimport java.lang.Runtime
     Runtime = jcall(RT, "getRuntime", RT, ());
@@ -618,9 +618,12 @@ closes all viewers that were opened using the history and frees the memory.
 * `myviewer`: the viewer to apply this to. By default the active viewer is used
 """
 function close_all(myviewer=nothing)
-    close_viewer()
-    for v in viewers["history"]
-        close_viewer(v)
+    myviewer = get_viewer(myviewer, ignore_nothing=true)
+    if !isnothing(myviewer)
+        close_viewer()
+    end
+    while ! isempty(viewers["history"]) 
+        close_viewer(viewers["history"][end])
     end
 end
 
@@ -722,7 +725,6 @@ function process_keys(KeyList::String, myviewer=nothing; mode::PanelChoices = Pa
         else
             throw(ArgumentError("unsupported mode $mode. Use `PanelMain` or `PanelElement`"))
         end
-        update_panels(myviewer)
     end
     return
 end
