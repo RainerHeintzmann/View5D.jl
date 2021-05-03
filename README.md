@@ -6,11 +6,16 @@
 [![CI](https://github.com/RainerHeintzmann/View5D.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/RainerHeintzmann/View5D.jl/actions/workflows/ci.yml)
 
 # Installation
-Not registered yet, but you can install current state with:
+You can install the latest release via:
+```julia
+julia> ] add View5D.jl
+```
+or for the developer version:
 ```julia
 julia> ] add https://github.com/RainerHeintzmann/View5D.jl
 ```
-
+`View5D.jl` uses `JavaCall.jl` which needs a working java installation on your system. If you do not already have one,
+you should install `OpenJDK` and you may have to set the `JAVA_HOME` variable to the installation directory on Windows.
 
 # Quick Overview
 
