@@ -43,7 +43,7 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
         env:
-          DISPLAY: :99.0
+          DISPLAY: :0.0
           JULIA_COPY_STACKS: 1
           #if: runner.os == 'macOS'
           #run: |
