@@ -44,9 +44,9 @@ jobs:
       - name:  Install
         run:  |
               if [ "$RUNNER_OS" == "Linux" ]; then
-                    apt install xorg openbox
+                    sudo apt-get install xorg openbox
               elif [ "$RUNNER_OS" == "macOS" ]; then
-                    brew cask install xquartz
+                    brew --cask install xquartz
               fi
         shell: bash
       - uses: julia-actions/julia-runtest@v1
