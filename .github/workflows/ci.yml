@@ -44,7 +44,8 @@ jobs:
       - run:   |
         if [ "$RUNNER_OS" == "Linux" ]; then
           apt install xorg openbox
-        elif [ "$RUNNER_OS" == "macOS" ]; then
+        fi
+        if [ "$RUNNER_OS" == "macOS" ]; then
           brew cask install xquartz
         fi
       - uses: julia-actions/julia-runtest@v1
