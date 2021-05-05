@@ -1,4 +1,5 @@
 using View5D, Test
+JavaCall.addOpts("-Djava.awt.headless=true") # This is needed for Linux and Mac
 
 data1 = rand(5,5,3,2,2);
 data2 = rand(5,5,3,2,2);
