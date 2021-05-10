@@ -1,6 +1,6 @@
 using View5D, Test, JavaCall
 # JavaCall.addOpts("-Djava.awt.headless=true") # This is needed for Linux and Mac, but the Applet.init() causes an exception
-JavaCall.init()
+# JavaCall.init()
 
 data1 = rand(5,5,3,2,2);
 data2 = rand(5,5,3,2,2);
