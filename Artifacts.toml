@@ -7,6 +7,7 @@
 # or easier: include("src\\GetArtifactInfo.jl")
 #
 # remember to change the version number in filename and 2x in the url AND in the View5D.jl file!
+# for a full release: update the version number in View5D.jl and comment "@JuliaRegistrator register"
 
 [View5D-jar]
 git-tree-sha1 = "c142cd6b5578d419e8cb43e31a1e9dbe28759437"
