@@ -1459,10 +1459,10 @@ function do_start(exs;mystarter=vv)
         varname = sprint(Base.show_unquoted, ex)
         if isnothing(alt_name)            
             name = :(println($(esc(varname))*" = ",
-                begin local value=display_array($(esc(ex)),$(esc(varname)),$(mystarter),$(viewer)) end))
+                begin local value=display_array($(esc(ex)),$(esc(varname)),$(mystarter),$(esc(viewer))) end))
         else
             name = :(println($(esc(varname))*" = ",
-                begin local value=display_array($(esc(ex)),$(esc(alt_name)),$(mystarter),$(viewer)) end))
+                begin local value=display_array($(esc(ex)),$(esc(alt_name)),$(mystarter),$(esc(viewer))) end))
         end
         push!(blk.args, name)
         if typeof(ex)==String
@@ -1470,7 +1470,7 @@ function do_start(exs;mystarter=vv)
         else 
             alt_name = nothing
         end
-        if typeof(ex) == JavaCall.JavaObject{Symbol("view5d.View5D")}
+        if typeof(ex) == Symbol # && typeof(eval(ex)) == JavaCall.JavaObject{Symbol("view5d.View5D")}
             viewer=ex
         end
     end
