@@ -7,17 +7,18 @@ data2 = rand(5,5,3,2,2);
 data3 = rand(5,5,3,4,2); # more elements
 
 @testset "start viewers" begin
-    @vv data1 # start the viewer
-    @ve data2 # append along element
-    @vt data3 # append along time
-    @vt data3 # append along time
-    @test 6 == get_num_times()
-    @test 4 == get_num_elements()
-    sleep(0.1); hide_viewer() 
+    @vv data1; # start the viewer
+    @ve data2; # append along element
+    @vt data3; # append along time
+    @vt data3; # append along time
+    @vr data3; # replace first
+    @test 6 == get_num_times();
+    @test 4 == get_num_elements();
+    sleep(0.1); hide_viewer() ;
 end
 
 @testset "interaction with markers" begin
-    @vv data1 # start the viewer
+    @vv data1; # start the viewer
     markers = empty_marker_list(2,2)
     markers[1][3]=1.0 
     markers[2][4]=2.0 
@@ -45,9 +46,11 @@ data2 = rand(5,5,3,1,1) .+ 1im.*rand(5,5,3,1,1);
 data3 = rand(5,5,3,2,1) .+ 1im.*rand(5,5,3,2,1); # more elements
 
 @testset "complex-valued display" begin
-    @test nothing == @vp data1 # start a new viewer in phase mode
-    @test nothing == set_gamma(1.0)
-    @test nothing == @vep data2 # start a new viewer in phase mode
+    @test nothing != @vp data1; # start a new viewer in phase mode
+    @test nothing == set_gamma(1.0);
+    @test nothing != @vep data2; # start a new viewer in phase mode
+    @vp data3; # new phase viewer
+    @vrp data3; # replace phase data
 end
 
 @testset "view5d datatypes" begin

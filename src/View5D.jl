@@ -26,8 +26,8 @@ Future versions will support features such as
 
 """
 module View5D
-export view5d, vv, vp, vt, ve, vep, vtp, get_active_viewer
-export @vv, @ve, @vp, @vep, @vt, @vtp
+export view5d, vv, vp, vt, ve, vep, vtp, vr, vrp, get_active_viewer
+export @vv, @ve, @vp, @vep, @vt, @vtp, @vr, @vrp
 export process_key_element_window, process_key_main_window, process_keys
 export set_axis_scales_and_units, set_value_unit, set_value_name
 export repaint, update_panels, to_front, hide_viewer, set_fontsize 
@@ -1206,6 +1206,9 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode::Disp
     if startswith("$(typeof(data))","ImageMeta")
         return view5d_M(data , viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     end
+    if show_phase && eltype(data)<:Real
+            data = Complex.(data) # always cast to complex, if the user wants phase display
+    end
     if ! JavaCall.isloaded()        
         # Uses classpath set in __init__
         JavaCall.init()
@@ -1299,12 +1302,12 @@ function vv(data :: Displayable, viewer=nothing; gamma=nothing, mode::DisplayMod
     view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
-function display_array(arr::Displayable, name, disp=vv) # AbstractArray{N,T} where {N,T}
-    disp(arr,name=name)
-    return "in_view5d"
+function display_array(arr::Displayable, name, disp=vv, viewer=nothing) # AbstractArray{N,T} where {N,T}
+    return disp(arr,viewer; name=name)
+    # return "in_view5d"
 end
 
-function display_array(ex, name, disp=vv)
+function display_array(ex, name, disp=vv, viewer=nothing)
     repr(begin local value = ex end) # returns a representation (a String)
 end
 
@@ -1333,7 +1336,7 @@ end
 Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
 The viewer is interactive and support a wide range of user actions. 
 For details see https://nanoimaging.de/View5D
-This is just a shorthand adding an element to an existing viewer (mode=`add_element`) for the function `view5d`. See `view5d` for arguments description.
+This is just a shorthand adding an element to an existing viewer (mode=DisplAddElement) for the function `view5d`. See `view5d` for arguments description.
 See documentation of `view5d` for explanation of the parameters.
 
 `elements_linked`: determines wether all elements are linked together (no indidual scaling and same color)
@@ -1347,6 +1350,29 @@ function ve(data::Displayable, viewer=nothing; gamma=nothing, element=0, time=0,
         vv(data, viewer; gamma=gamma, mode=DisplAddElement, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     end
 end
+
+"""
+    vr(data, viewer=nothing; 
+         gamma=nothing, element=0, time=0, 
+         show_phase=true, keep_zero=false, title=nothing, elements_linked=false)
+
+Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
+The viewer is interactive and support a wide range of user actions. 
+For details see https://nanoimaging.de/View5D
+This is just a shorthand displacing data in an existing viewer (mode=DisplReplace) for the function `view5d`. See `view5d` for arguments description.
+See documentation of `view5d` for explanation of the parameters.
+
+`elements_linked`: determines wether all elements are linked together (no indidual scaling and same color)
+"""
+function vr(data::Displayable, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, elements_linked=false)
+    viewer = get_viewer(viewer, ignore_nothing=true)
+    if isnothing(viewer)
+        vv(data, viewer; gamma=gamma, mode=DisplNew, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+    else
+        vv(data, viewer; gamma=gamma, mode=DisplReplace, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+    end
+end
+
 
 """
     vt(data, viewer=nothing; 
@@ -1407,20 +1433,36 @@ function vtp(data :: Displayable, viewer=nothing; gamma=nothing, element=0, time
     vt(data, viewer; gamma=gamma, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
+"""
+    vrp(data, viewer=nothing; 
+         gamma=nothing, element=0, time=0, 
+         show_phase=true, keep_zero=false, title=nothing)
+
+Visualizes images and arrays via a Java-based five-dimensional viewer "View5D".
+The viewer is interactive and support a wide range of user actions. 
+For details see https://nanoimaging.de/View5D
+This is just a shorthand (with `show_phase=true`) replacing data in an existing viewer (mode=DisplReplace) for the function `view5d`. See `view5d` for arguments description.
+See documentation of `view5d` for explanation of the parameters.
+"""
+function vrp(data :: Displayable, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
+    vr(data, viewer; gamma=gamma, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+end
+
 
 ## just a non-exported helper function to be used in the various macros below
 function do_start(exs;mystarter=vv)
     blk = Expr(:block)
     alt_name=nothing
+    viewer=nothing  # by default the active viewer is used
+    value = ""
     for ex in exs
         varname = sprint(Base.show_unquoted, ex)
-        value = ""
         if isnothing(alt_name)            
             name = :(println($(esc(varname))*" = ",
-                begin local value=display_array($(esc(ex)),$(esc(varname)),$(mystarter)) end))
+                begin local value=display_array($(esc(ex)),$(esc(varname)),$(mystarter),$(viewer)) end))
         else
             name = :(println($(esc(varname))*" = ",
-                begin local value=display_array($(esc(ex)),$(esc(alt_name)),$(mystarter)) end))
+                begin local value=display_array($(esc(ex)),$(esc(alt_name)),$(mystarter),$(viewer)) end))
         end
         push!(blk.args, name)
         if typeof(ex)==String
@@ -1428,9 +1470,12 @@ function do_start(exs;mystarter=vv)
         else 
             alt_name = nothing
         end
+        if typeof(ex) == JavaCall.JavaObject{Symbol("view5d.View5D")}
+            viewer=ex
+        end
     end
-    isempty(exs) || # push!(blk.args, :value)
-    return blk
+    isempty(exs) || push!(blk.args, :value) # the second part ensures that the result of the display is the viewer
+    return blk # blk
 end
 
 """
@@ -1485,7 +1530,7 @@ end
 
 """
     @vt expressions
-a conveniance macro in its usage similar to `@show`, displaying several array in a joined viewer or adding to an alraedy existing viewer as new time points. 
+a conveniance macro in its usage similar to `@show`, displaying several arrays in a joined viewer or adding to an alraedy existing viewer as new time points. 
 The expression typically also constitutes the name of the displayed data in the viewer.
 A string in this list of expressions in front of an array is interpreted as a replacement for the name.
 Note that variables of String type or expressions in strings do currently not work. 
@@ -1495,12 +1540,28 @@ macro vt(exs...)
     do_start(exs; mystarter=vt)
 end
 
+"""
+    @vr expressions
+a conveniance macro in its usage similar to `@show`, replacing the first element with new data. 
+The expression typically also constitutes the name of the displayed data in the viewer.
+A string in this list of expressions in front of an array is interpreted as a replacement for the name.
+Note that variables of String type or expressions in strings do currently not work. 
+```
+"""
+macro vr(exs...)
+    do_start(exs; mystarter=vr)
+end
+
 macro vep(exs...)
     do_start(exs; mystarter=vep)
 end
 
 macro vtp(exs...)
     do_start(exs; mystarter=vtp)
+end
+
+macro vrp(exs...)
+    do_start(exs; mystarter=vrp)
 end
 
 end # module
