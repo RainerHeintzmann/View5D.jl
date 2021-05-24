@@ -1254,23 +1254,47 @@ function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode::Disp
     return myviewer
 end
 
+function getPermutation(ordertuple)
+    perm = collect(1:5)
+    for d in 1:5
+        if ordertuple[d] == :X
+            perm[1]=d
+        elseif ordertuple[d] == :Y
+            perm[2]=d
+        elseif ordertuple[d] == :Z
+            perm[3]=d
+        elseif ordertuple[d] == :C
+            perm[4]=d
+        elseif ordertuple[d] == :T
+            perm[5]=d
+        else
+            @warn("unknown tag in importorder: $(ordertuple[d])")
+        end
+    end
+    return perm
+end
 
 # special version for Bioformats or related data types 
 function view5d_M(data, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
     if startswith("$(typeof(data))","ImageMeta")
         if typeof(data.data) <:AbstractArray 
-            if ndims(data.data)==5
-                dat = permutedims(data.data, (3,4,2,5,1))
-            else
-                dat = data.data # do we need to switch xy?
-            end
             prop=nothing
             axs=nothing
-            if hasfield(typeof(dat),:axes) 
-                prop=axes_to_properties(dat.axes)
+            if hasfield(typeof(data),:properties)
+                prop=data.properties
             end
-            if hasfield(typeof(dat),:properties)
-                prop=dat.properties
+            if !isnothing(prop) && haskey(prop,:ImportOrder)
+                @show perm = getPermutation(prop[:ImportOrder])
+                dat = permutedims(data.data, perm)
+            else
+                if hasfield(typeof(data.data),:axes) 
+                    prop=axes_to_properties(data.data.axes)
+                end
+                if ndims(data.data)==5
+                    dat = permutedims(data.data, (3,4,2,5,1))
+                else
+                    dat = data.data # do we need to switch xy?
+                end
             end
             view5d(dat, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title, properties=prop)
         else
