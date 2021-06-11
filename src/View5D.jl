@@ -132,7 +132,7 @@ function java_memory(verbose=true)
 end
 
 function remove_viewer(myviewer)
-    if myviewer==get_active_viewer()
+    if myviewer==get_active_viewer(false)
         clear_active()
     end
     h = viewers["history"]
@@ -804,9 +804,12 @@ end
 viewers = Dict() # Ref[Dict] storing viewer 
 viewer_sizes = Dict() # storing the current size information as a tuple for each viewer
 
-function get_active_viewer()
+function get_active_viewer(do_check_alive=true)
     if haskey(viewers,"active")
-        myviewer=viewers["active"]    
+        myviewer=viewers["active"]
+        if do_check_alive
+            myviewer = check_alive(myviewer)
+        end
     else
         myviewer=nothing
     end
@@ -1002,10 +1005,10 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
             viewer_sizes[viewer][5] = get_num_times(viewer)
             for e in 0: get_num_elements()-1 # just to normalize colors and set names
                 set_element(e) # go to the this element
-                process_keys("t",viewer)
                 if !isnothing(name)
                     set_element_name(e, name, viewer)
                 end
+                process_keys("t",viewer)
             end
             if !isnothing(properties)
                 set_properties(properties, viewer, element=element)
@@ -1368,7 +1371,7 @@ See documentation of `view5d` for explanation of the parameters.
 function ve(data::Displayable, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, elements_linked=false)
     viewer = get_viewer(viewer, ignore_nothing=true)
     if isnothing(viewer)
-        vv(data, viewer; gamma=gamma, mode=DisplNew, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+        vv(data, viewer; gamma=gamma, mode=DisplAddElement, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     else
         set_elements_linked(elements_linked, viewer)
         vv(data, viewer; gamma=gamma, mode=DisplAddElement, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
@@ -1425,6 +1428,8 @@ function vt(data :: Displayable, viewer=nothing; gamma=nothing, element=0, time=
         set_times_linked(times_linked, viewer)
         vv(data, viewer; gamma=gamma, mode=DisplAddTime, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     end
+    viewer = get_viewer(viewer, ignore_nothing=true);
+    set_times_linked(times_linked, viewer)
 end
 
 """

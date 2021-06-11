@@ -72,6 +72,28 @@ Color display of floating-point or 16 or higher bit data supports adaptively upd
 Zooming in on a colormap,  by changing the lower and upper display threshold, for some time the colormap is simply changed to yield a smooth experience but occasionally the cached display data is recomputed to avoid loosing fine granularity on the color levels.
 
 
+## Interaction with Julia
+The interaction to Julia supports calling the viewer via one main method `view5d` supporting various options. Since the viewer is most useful for quick visualization and debugging, a multitude of short-hand convenience functions are provided:
+- `vv(data)`: starts a new viewer (window) and displays the data
+- `vp(data)`: starts a new viewer (window) and displays the data as complex values with a **color-phase** (multiplicative) overlay as a second channel. This is particularly useful for displaying complex-valued data. By default the `gamma ` correction for display is set to 0.3 enhancing the low-values. Naturally this can be prevented by the optional named argument `gamma` for all of the calls.
+- `ve(data)`: concatenates the data to display to the currently "active" viewer as a new entry along the element (==color) direction.
+- `vt(data)`: concatenates the data to display to the currently "active" viewer as a new entry along the time (slider on the right side) direction.
+- `vtp(data)`, `vep(data)`: concatenates color-phase display (see `vp`) along respective data directions.
+- `vr(data)`: replaces the currently displayed data in the currently "active" viewer by this new `data`.
+- `vrp(data)`: replaces color-phase display data in the currently "active" viewer by this new color-phase display `data`.
+
+All of these function have corresponding macros (`@vv`, `@vp` etc.) to be used in analogy to the `@show` method. This eases debugging. If the preceding expression is a viewer reference, display is directed to this specific viewer. Here an example to update a specific viewer display every second in a for loop:
+```julia
+v= @vr rand(10,10,10,3); for n in 1:10  sleep(1); @vr v rand(10,10,10,3) end
+```
+Importing and exporting hierarchical sets of markers into and from the viewer are supported (`export_marker_lists`, `import_marker_lists`).
+
+View5D features a wide range of data formats: `Float32`, `Float64`, `UInt8`, `Int8`, `UInt16`, `Int16`, `UInt32`, `Int32`, `Int`, `Complex32`, `RGB` and `Gray`, also the outputs of the `Images.jl` `BioformatsLoader.jl` package. If context information such as axes sizes is available, it will shown accordingly in the viewer.
+
+Display of `Complex`-valued data can be toggled between `magnitude`, `phase`, `real` and `imaginary` part.  A complex-valued array by default switches the viewer to a `gamma` of 0.3 easing the inspection of Fourier-transformed data. However, gamma is adjustable interactively as well as when invoking the viewer.
+
+Since the viewer is written in Java and launched via JavaCall its thread should be pretty independent from julia. This should make the user experience pretty smooth also with minimal implications to julia threading performance. 
+
 
 # List of some useful commands to interact with View5D from julia
 * `view5d()`: visualizes data. Via "mode" it can be selected whether a new viewer will be used (`mode="new"`) or the data is appended to the existing viewer via the element (`mode="add_time"`) or time direction (`mode="add_time"`). Data can also be replacing currently displayed data (`mode="replace"`), which is useful to display iterative updates.
