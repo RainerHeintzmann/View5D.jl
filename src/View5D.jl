@@ -1102,8 +1102,8 @@ function set_properties(properties, myviewer=nothing; element=0)
         scaX = haskey(Pixels, :PhysicalSizeX) ? Pixels[:PhysicalSizeX] : 1.0
         scaY = haskey(Pixels, :PhysicalSizeY) ? Pixels[:PhysicalSizeY] : 1.0
         scaZ = haskey(Pixels, :PhysicalSizeZ) ? Pixels[:PhysicalSizeZ] : 1.0
-        scaE = 1.0 # haskey(Pixels, :PhysicalSizeZ) ? Pixels[:PhysicalSizeZ] : "unknown"
-        scaT = 1.0 #haskey(Pixels, :PhysicalSizeZ) ? Pixels[:PhysicalSizeZ] : "unknown"
+        scaE = haskey(Pixels, :PhysicalSizeE) ? Pixels[:PhysicalSizeE] : 1.0
+        scaT = haskey(Pixels, :PhysicalSizeT) ? Pixels[:PhysicalSizeT] : 1.0
         scaV = 1.0 # value scale
         nameV = "intensity"
         unitV = "a.u."
@@ -1203,6 +1203,14 @@ julia> v2 = view5d(img2);
 julia> v3 = view5d(img3);
 julia> using IndexFunArrays
 julia> view5d(exp_ikx((100,100),shift_by=(2.3,5.77)).+0, show_phase=true)  # shows a complex-valued phase ramp with cyclic colormap
+```
+--------------------------
+Note that you can also call view5d with a `Tuple{AbstractArray, NamedTuple}` as the first argument.
+The NamedTuple can contain parameters and via :properties also the scaling information.
+This allows to easily adapt any array-based datatype to naturally display in view5d with meta-information,
+by writing a Base.convert routine such as:
+```jldoctest
+
 ```
 """
 function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, properties=nothing)
@@ -1314,6 +1322,99 @@ function view5d(datatuple :: Union{Tuple, Vector}, viewer=nothing; gamma=nothing
     end
 end
 
+#=  # DOES NOT WORK:
+# a bit of metaprogramming that assings the various properties, if needed
+for (var, sym) in zip((Ref(gamma), Ref(show_phase), Ref(keep_zero), Ref(name), Ref(title), Ref(properties)),
+    (:gamma, :show_phase, :keep_zero, :name, :title, :properties))
+if isnothing(var[]) && haskey(prop,sym)
+var[] = prop[sym]
+end
+end
+=#
+
+function replace_param(prop, value, symb)
+    if isnothing(value) && haskey(prop,symb)
+        value = prop[symb]
+    end
+    return value
+end
+
+function adjust_properties!(properties)
+    if isnothing(properties)
+        return nothing
+    end
+    if !haskey(properties,:Pixels) # overwrite only
+        Pixels=Dict();
+    else
+        Pixels=properties[:Pixels]
+    end
+    if !haskey(properties,:Pixels) && haskey(properties,:pixelsize)
+        pixelsize = properties[:pixelsize]
+        Pixels[:PhysicalSizeX] = pixelsize[1]
+        if length(pixelsize) > 1
+            Pixels[:PhysicalSizeY] = pixelsize[2]
+        end
+        if length(pixelsize) > 2
+            Pixels[:PhysicalSizeZ] = pixelsize[3]
+        end
+        if length(pixelsize) > 3
+            Pixels[:PhysicalSizeE] = pixelsize[4]
+        end
+        if length(pixelsize) > 4
+            Pixels[:PhysicalSizeT] = pixelsize[5]
+        end
+        if isa(properties, NamedTuple)
+            properties = Dict(pairs(properties)) # convert into a Dict
+        end
+    end
+    if !haskey(properties,:Pixels) && haskey(properties,:units)
+        units = properties[:units]
+        Pixels[:PhysicalSizeXUnit] = units[1]
+        if length(units) > 1
+            Pixels[:PhysicalSizeYUnit] = units[2]
+        end
+        if length(units) > 2
+            Pixels[:PhysicalSizeZUnit] = units[3]
+        end
+        if length(units) > 3
+            Pixels[:PhysicalSizeEUnit] = units[4]
+        end
+        if length(units) > 4
+            Pixels[:PhysicalSizeTUnit] = units[5]
+        end
+        if isa(properties, NamedTuple)
+            properties = Dict(pairs(properties)) # convert into a Dict
+        end
+    end
+    properties[:Pixels] = Pixels
+end
+
+TransferType = NamedTuple{(:View5D, :transfer), Tuple{Nothing, NamedTuple}}
+
+# This version is the entry point for other datatypes, which support also placement and other parameters
+function view5d(data_prop, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, properties=nothing)
+    try
+        data_prop=convert(TransferType, data_prop)
+    catch e
+        if isa(e, MethodError) && e.f == convert
+            return nothing  # signal the conversion failure back 
+        else
+            throw(e)
+        end
+    end
+    data = data_prop[:transfer][:data]
+    trans = data_prop[:transfer]
+    gamma = replace_param(trans, gamma,:gamma)
+    mode = replace_param(trans, mode,:mode)
+    show_phase = replace_param(trans, show_phase,:show_phase)
+    keep_zero = replace_param(trans, keep_zero,:keep_zero)
+    name = replace_param(trans, name,:name)
+    title = replace_param(trans, title,:title)
+    properties = replace_param(trans, properties,:properties)
+    properties = adjust_properties!(properties)
+    return view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title, properties=properties)
+end
+
 """
     vv(data, viewer=nothing; 
          gamma=nothing, mode=DisplNew, element=0, time=0, 
@@ -1325,18 +1426,22 @@ For details see https://nanoimaging.de/View5D
 This is just a shorthand for the function `view5d`. See `view5d` for arguments description.
 See documentation of `view5d` for explanation of the parameters.
 """
-function vv(data :: Displayable, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
+function vv(data, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
     view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
-function display_array(arr::Displayable, name, disp=vv, viewer=nothing) # AbstractArray{N,T} where {N,T}
-    return disp(arr,viewer; name=name)
+function display_array(arr, name, disp=vv, viewer=nothing) # AbstractArray{N,T} where {N,T}
+    v=disp(arr,viewer; name=name)
+    if isnothing(v)
+        v= nothing # repr(begin local value = arr end) # returns a representation (a String)
+    end
+    return v
     # return "in_view5d"
 end
 
-function display_array(ex, name, disp=vv, viewer=nothing)
-    repr(begin local value = ex end) # returns a representation (a String)
-end
+# function display_array(ex, name, disp=vv, viewer=nothing)
+#    repr(begin local value = ex end) # returns a representation (a String)
+# end
 
 using Base
 
@@ -1351,7 +1456,7 @@ For details see https://nanoimaging.de/View5D
 This is just a shorthand (with `show_phase=true`) for the function `view5d`. See `view5d` for arguments description.
 See documentation of `view5d` for explanation of the parameters.
 """
-function vp(data::Displayable, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
+function vp(data, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
     view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
@@ -1368,7 +1473,7 @@ See documentation of `view5d` for explanation of the parameters.
 
 `elements_linked`: determines wether all elements are linked together (no indidual scaling and same color)
 """
-function ve(data::Displayable, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, elements_linked=false)
+function ve(data, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, elements_linked=false)
     viewer = get_viewer(viewer, ignore_nothing=true)
     if isnothing(viewer)
         vv(data, viewer; gamma=gamma, mode=DisplAddElement, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
@@ -1391,7 +1496,7 @@ See documentation of `view5d` for explanation of the parameters.
 
 `elements_linked`: determines wether all elements are linked together (no indidual scaling and same color)
 """
-function vr(data::Displayable, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, elements_linked=false)
+function vr(data, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, elements_linked=false)
     viewer = get_viewer(viewer, ignore_nothing=true)
     if isnothing(viewer)
         vv(data, viewer; gamma=gamma, mode=DisplNew, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
@@ -1420,7 +1525,7 @@ created data 3
 
 ```
 """
-function vt(data :: Displayable, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, times_linked=false)
+function vt(data, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, times_linked=false)
     viewer = get_viewer(viewer, ignore_nothing=true);
     if isnothing(viewer)
         vv(data, viewer; gamma=gamma, mode=DisplNew, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
@@ -1443,7 +1548,7 @@ For details see https://nanoimaging.de/View5D
 This is just a shorthand (with `show_phase=true`) adding an element to an existing viewer (mode=DisplAddElement) for the function `view5d`. See `view5d` for arguments description.
 See documentation of `view5d` for explanation of the parameters.
 """
-function vep(data :: Displayable, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
+function vep(data, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
     ve(data, viewer; gamma=gamma, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
@@ -1458,7 +1563,7 @@ For details see https://nanoimaging.de/View5D
 This is just a shorthand (with `show_phase=true`) adding a time point to an existing viewer (mode=DisplAddTime) for the function `view5d`. See `view5d` for arguments description.
 See documentation of `view5d` for explanation of the parameters.
 """
-function vtp(data :: Displayable, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
+function vtp(data, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
     vt(data, viewer; gamma=gamma, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
@@ -1473,7 +1578,7 @@ For details see https://nanoimaging.de/View5D
 This is just a shorthand (with `show_phase=true`) replacing data in an existing viewer (mode=DisplReplace) for the function `view5d`. See `view5d` for arguments description.
 See documentation of `view5d` for explanation of the parameters.
 """
-function vrp(data :: Displayable, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
+function vrp(data, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=true, keep_zero=false, name=nothing, title=nothing)
     vr(data, viewer; gamma=gamma, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
