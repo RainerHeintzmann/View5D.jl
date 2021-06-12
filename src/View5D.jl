@@ -337,7 +337,9 @@ end
         value_name = "intensity",value_unit = "photons",
         axis_names = ["X", "Y", "Z", "E", "T"],
         axis_units=["a.u.","a.u.","a.u.","a.u.","a.u."], myviewer=nothing; 
-        element=0,time=0)
+        element=0,time=0,
+        value_offset=0.0,
+        offset=[0.0,0.0,0.0,0.0,0.0])
 
 overwrites the units and scaling of all five axes and the value units and scalings.
 
@@ -348,6 +350,9 @@ overwrites the units and scaling of all five axes and the value units and scalin
 * `value_unit`: the unit of the value axis of this element as a String
 * `axes_names`: the names of the various (X,Y,Z,E,T) axes as a 5D vector of String
 * `axes_units`: the units of the various axes as a 5D vector of String
+
+* `value_offset`: allows to add an offset to the displayed values
+* `offset`: allows to add an offset to each of the 5 coordinates
 
 #Example
 ```jldoctest
@@ -360,7 +365,9 @@ function set_axis_scales_and_units(pixelsize=(1.0,1.0,1.0,1.0,1.0),
     value_scale=1.0, value_name = "intensity",value_unit = "photons",
     axes_names = ["X", "Y", "Z", "E", "T"],
     axes_units=["a.u.","a.u.","a.u.","a.u.","a.u."], myviewer=nothing; 
-    element=0,time=0)
+    element=0,time=0,
+    value_offset=0.0,
+    offset=[0.0,0.0,0.0,0.0,0.0])
 
     myviewer=get_viewer(myviewer)    
     # the line below set this for all elements and times
@@ -382,7 +389,8 @@ function set_axis_scales_and_units(pixelsize=(1.0,1.0,1.0,1.0,1.0),
     end
     jcall(myviewer, "SetAxisScalesAndUnits", Nothing, (jint,jint, jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,
             JString,jStringArr,JString,jStringArr),
-            element,time, value_scale, pixelsize..., 0,0,0,0,0,0,
+            element,time, value_scale, pixelsize..., 
+            value_offset, offset...,
             value_name, axes_names, value_unit, axes_units);
     update_panels(myviewer);
 end
@@ -1092,26 +1100,55 @@ function set_properties(properties, myviewer=nothing; element=0)
     if haskey(properties,:Name) 
         set_title(properties[:Name], myviewer)
     end
+    axes_scales = (1.0,1.0,1.0,1.0,1.0)
+    axes_names = ["X", "Y", "Z", "E", "T"]
+    axes_units=["pix","pix","pix","unknown","unknown"]
+    scaV = 1.0 # value scale
+    nameV = "intensity"
+    unitV = "a.u."
+    value_offset=0.0
     if haskey(properties,:Pixels)
         Pixels = properties[:Pixels]
         unitX = haskey(Pixels, :PhysicalSizeXUnit) ? Pixels[:PhysicalSizeXUnit] : "unknown"
         unitY = haskey(Pixels, :PhysicalSizeYUnit) ? Pixels[:PhysicalSizeYUnit] : "unknown"
         unitZ = haskey(Pixels, :PhysicalSizeZUnit) ? Pixels[:PhysicalSizeZUnit] : "unknown"
-        unitE = "unknown"
-        unitT = "unknown"
+        unitE = haskey(Pixels, :PhysicalSizeEUnit) ? Pixels[:PhysicalSizeEUnit] : "unknown" #not in the Bioformats-Spec
+        unitT = haskey(Pixels, :PhysicalSizeTUnit) ? Pixels[:PhysicalSizeTUnit] : "unknown" #not in the Bioformats-Spec
         scaX = haskey(Pixels, :PhysicalSizeX) ? Pixels[:PhysicalSizeX] : 1.0
         scaY = haskey(Pixels, :PhysicalSizeY) ? Pixels[:PhysicalSizeY] : 1.0
         scaZ = haskey(Pixels, :PhysicalSizeZ) ? Pixels[:PhysicalSizeZ] : 1.0
-        scaE = haskey(Pixels, :PhysicalSizeE) ? Pixels[:PhysicalSizeE] : 1.0
-        scaT = haskey(Pixels, :PhysicalSizeT) ? Pixels[:PhysicalSizeT] : 1.0
-        scaV = 1.0 # value scale
-        nameV = "intensity"
-        unitV = "a.u."
+        scaE = haskey(Pixels, :PhysicalSizeE) ? Pixels[:PhysicalSizeE] : 1.0 #not in the Bioformats-Spec
+        scaT = haskey(Pixels, :PhysicalSizeT) ? Pixels[:PhysicalSizeT] : 1.0 #not in the Bioformats-Spec
+        scaT = haskey(Pixels, :TimeIncrement) ? Pixels[:TimeIncrement] : 1.0
         axes_scales = (scaX,scaY,scaZ,scaE,scaT)
         axes_names = ["X", "Y", "Z", "E", "T"]
         axes_units=[unitX,unitY,unitZ,unitE,unitT]
+    end
+    if haskey(properties,:axes_scales)
+        axes_scales = properties[:axes_scales]
+    end
+    if haskey(properties,:axes_names)
+        axes_names = properties[:axes_names]
+    end
+    if haskey(properties,:axes_units)
+        axes_units = properties[:axes_units]
+    end
+    offset=[0.0,0.0,0.0,0.0,0.0]
+    if haskey(properties,:Plane)
+        Plane = properties[:Plane]
+        offset[1] = haskey(Plane, :PositionX) ? Plane[:PositionX] : 0.0
+        offset[2] = haskey(Plane, :PositionY) ? Plane[:PositionY] : 0.0
+        offset[3] = haskey(Plane, :PositionZ) ? Plane[:PositionZ] : 0.0
+    elseif haskey(properties,:offset) # the easy way
+        if length(properties[:offset]) < 5
+            offset[1:length(properties[:offset])] .= properties[:offset]
+        else
+            offset=properties[:offset][1:5]
+        end
+    end
+    
     set_axis_scales_and_units(axes_scales,scaV, nameV, unitV, 
-                                axes_names, axes_units, myviewer,element=element,time=0)
+                            axes_names, axes_units, myviewer,element=element,time=0, value_offset=value_offset, offset=offset)
     if haskey(Pixels,:Channel)
         Channels = Pixels[:Channel]
         if isa(Channels,Dict)
@@ -1123,7 +1160,6 @@ function set_properties(properties, myviewer=nothing; element=0)
             set_element_name(element,name, myviewer)
             element = element + 1
         end
-    end
     end
 end
 
@@ -1387,6 +1423,8 @@ function adjust_properties!(properties)
         end
     end
     properties[:Pixels] = Pixels
+    @show properties
+    return properties
 end
 
 TransferType = NamedTuple{(:View5D, :transfer), Tuple{Nothing, NamedTuple}}
