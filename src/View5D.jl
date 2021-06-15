@@ -45,6 +45,7 @@ using JavaCall
 using LazyArtifacts  # used to be Pkg.artifacts
 using Colors, ImageCore
 using AxisArrays, Unitful
+using StaticArrays
 # using JavaShowMethods
 
 """ @enum DisplayMode
@@ -1319,6 +1320,24 @@ function getPermutation(ordertuple)
         end
     end
     return perm
+end
+
+function view5d(data :: Array{SArray{Tuple{N},T,1,N}}, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, properties=nothing) where {T,N}
+    if ndims(data) <= 3
+        data = expand_dims(data,3)
+        szdat = size(data)
+    else
+        error("Vector data only supported up to 3D outer dimensions.")
+    end
+ 
+    fullsize = (szdat...,N)
+    ndata = Array{eltype(eltype(data))}(undef,fullsize...)
+    for i in CartesianIndices(data)
+        for d=1:N            
+            ndata[Tuple(i)...,d] = data[i][d]
+        end
+    end
+    view5d(ndata, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title, properties=properties)
 end
 
 # special version for Bioformats or related data types 
