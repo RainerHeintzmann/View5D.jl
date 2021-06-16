@@ -1189,6 +1189,9 @@ function axes_to_properties(axes)
     return properties
 end
 
+TransferType = NamedTuple{(:View5D, :transfer), Tuple{Nothing, NamedTuple}}
+
+
 """
     view5d(data, viewer=nothing; 
          gamma=nothing, mode=DisplNew, element=0, time=0, 
@@ -1250,10 +1253,30 @@ by writing a Base.convert routine such as:
 
 ```
 """
-function view5d(data :: AbstractArray, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, properties=nothing)
+function view5d(data, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, properties=nothing)
     if startswith("$(typeof(data))","ImageMeta")
         return view5d_M(data , viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     end
+
+    try # check if this type is convertible to a special display tuple
+        data_prop=convert(TransferType, data)
+        data = data_prop[:transfer][:data]
+        trans = data_prop[:transfer]
+        gamma = replace_param(trans, gamma,:gamma)
+        mode = replace_param(trans, mode,:mode)
+        show_phase = replace_param(trans, show_phase,:show_phase)
+        keep_zero = replace_param(trans, keep_zero,:keep_zero)
+        name = replace_param(trans, name,:name)
+        title = replace_param(trans, title,:title)
+        properties = replace_param(trans, properties,:properties)
+        properties = adjust_properties!(properties)
+    catch e
+        if ! (isa(e, MethodError) && e.f == convert)
+            throw(e)
+        end
+    end
+
+
     if show_phase && eltype(data)<:Real
             data = Complex.(data) # always cast to complex, if the user wants phase display
     end
@@ -1446,9 +1469,7 @@ function adjust_properties!(properties)
     return properties
 end
 
-TransferType = NamedTuple{(:View5D, :transfer), Tuple{Nothing, NamedTuple}}
-
-# This version is the entry point for other datatypes, which support also placement and other parameters
+#= This version is the entry point for other datatypes, which support also placement and other parameters
 function view5d(data_prop, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, properties=nothing)
     try
         data_prop=convert(TransferType, data_prop)
@@ -1471,6 +1492,7 @@ function view5d(data_prop, viewer=nothing; gamma=nothing, mode::DisplayMode =Dis
     properties = adjust_properties!(properties)
     return view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title, properties=properties)
 end
+=#
 
 """
     vv(data, viewer=nothing; 
