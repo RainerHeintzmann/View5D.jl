@@ -1584,8 +1584,7 @@ created data 3
 """
 function vt(data, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, times_linked=false)
     viewer = get_viewer(viewer, ignore_nothing=true);
-    vv(data, viewer; gamma=gamma, mode=DisplAddTime, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
-    viewer = get_viewer(viewer, ignore_nothing=true);
+    viewer = vv(data, viewer; gamma=gamma, mode=DisplAddTime, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     set_times_linked(times_linked, viewer)
 end
 
