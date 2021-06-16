@@ -847,7 +847,7 @@ function set_active_viewer(myviewer=nothing)
     viewers["active"] = myviewer
     if haskey(viewers,"history")
         if isnothing(myviewer)
-            myviewer = viewers["history"][end];
+            myviewer = nothing # viewers["history"][end];
             viewers["active"] = myviewer
         end
         push!(viewers["history"],  myviewer) 
@@ -1350,7 +1350,7 @@ function view5d_M(data, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplN
                 prop=data.properties
             end
             if !isnothing(prop) && haskey(prop,:ImportOrder)
-                @show perm = getPermutation(prop[:ImportOrder])
+                perm = getPermutation(prop[:ImportOrder])
                 dat = permutedims(data.data, perm)
             else
                 if hasfield(typeof(data.data),:axes) 
@@ -1442,7 +1442,7 @@ function adjust_properties!(properties)
         end
     end
     properties[:Pixels] = Pixels
-    @show properties
+    # @show properties
     return properties
 end
 
@@ -1584,12 +1584,7 @@ created data 3
 """
 function vt(data, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, times_linked=false)
     viewer = get_viewer(viewer, ignore_nothing=true);
-    if isnothing(viewer)
-        vv(data, viewer; gamma=gamma, mode=DisplNew, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
-    else
-        set_times_linked(times_linked, viewer)
-        vv(data, viewer; gamma=gamma, mode=DisplAddTime, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
-    end
+    vv(data, viewer; gamma=gamma, mode=DisplAddTime, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
     viewer = get_viewer(viewer, ignore_nothing=true);
     set_times_linked(times_linked, viewer)
 end
