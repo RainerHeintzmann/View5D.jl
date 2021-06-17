@@ -1275,6 +1275,9 @@ function view5d(data, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew
             throw(e)
         end
     end
+    if !isa(data, AbstractArray)
+        return nothing # just ignore this display. The macro will interpret this as "not displayable"
+    end
 
 
     if show_phase && eltype(data)<:Real
@@ -1671,6 +1674,7 @@ function do_start(exs;mystarter=vv)
             name = :(println($(esc(varname))*" = ",
                 begin local value=display_array($(esc(ex)),$(esc(alt_name)),$(mystarter),$(esc(viewer))) end))
         end
+
         push!(blk.args, name)
         if typeof(ex)==String
             alt_name = ex
