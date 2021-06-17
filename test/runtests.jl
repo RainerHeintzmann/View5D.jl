@@ -7,11 +7,13 @@ data2 = rand(5,5,3,2,2);
 data3 = rand(5,5,3,4,2); # more elements
 
 @testset "start viewers" begin
-    @vv data1; # start the viewer
+    v = @vv data1; # start the viewer
     @ve data2; # append along element
     @vt data3; # append along time
     @vt data3; # append along time
     @vr data3; # replace first
+    w = @vv data2
+    @vr v data3; # replace first
     @test 6 == get_num_times();
     @test 4 == get_num_elements();
     sleep(0.1); hide_viewer() ;
