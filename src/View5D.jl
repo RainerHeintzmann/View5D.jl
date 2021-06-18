@@ -1277,6 +1277,8 @@ function view5d(data, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew
     end
     if !isa(data, AbstractArray)
         return nothing # just ignore this display. The macro will interpret this as "not displayable"
+    elseif ndims(data)> 5
+        throw(ArgumentError("Data to display has more than 5 dimensions, which is the maximum number of dimensions to display."))
     end
 
 
