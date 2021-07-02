@@ -1,18 +1,18 @@
 # using Tar, Inflate, SHA
 # cd("C:\\Users\\pi96doc\\Documents\\Programming\\Java\\View5D")
-# filename = "View5D_v2.3.6-jar.tar.gz"
+# filename = "View5D_v2.3.7-jar.tar.gz"
 # println("git-tree-sha1 = \"", Tar.tree_hash(IOBuffer(inflate_gzip(filename))),"\"")
 # println("sha256 = \"", bytes2hex(open(sha256, filename)), "\"")
-# https://github.com/RainerHeintzmann/View5D/releases/download/View5D_v2.3.6/View5D_v2.3.6-jar.tar.gz
+# https://github.com/RainerHeintzmann/View5D/releases/download/View5D_v2.3.7/View5D_v2.3.7-jar.tar.gz
 # or easier: include("src\\GetArtifactInfo.jl")
 #
 # remember to change the version number in filename and 2x in the url AND in the View5D.jl file!
 # for a full release: update the version number in View5D.jl and comment "@JuliaRegistrator register"
 
 [View5D-jar]
-git-tree-sha1 = "62dfc4791b398f15ad417fdbc1d45fe1b44c5805"
+git-tree-sha1 = "67ad9e812526091e56b6d0055dedea85ceb37e7e"
 lazy = true
 
     [[View5D-jar.download]]
-    url = "https://github.com/RainerHeintzmann/View5D/releases/download/View5D_v2.3.6/View5D_v2.3.6-jar.tar.gz"
-    sha256 = "4c7f542da7b3b9839507229dbfc97a3c23665f97f8be80193838d03bacfa3426"
+    url = "https://github.com/RainerHeintzmann/View5D/releases/download/View5D_v2.3.7/View5D_v2.3.7-jar.tar.gz"
+    sha256 = "09a466bb845bf63cc4cd5f512b3b971a1eeb3b3bc7f567912891a8def8fa4332"
