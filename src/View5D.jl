@@ -338,7 +338,7 @@ end
         value_name = "intensity",value_unit = "photons",
         axis_names = ["X", "Y", "Z", "E", "T"],
         axis_units=["a.u.","a.u.","a.u.","a.u.","a.u."], myviewer=nothing; 
-        element=0,time=0,
+        element=:,time=:,
         value_offset=0.0,
         offset=[0.0,0.0,0.0,0.0,0.0])
 
@@ -352,6 +352,8 @@ overwrites the units and scaling of all five axes and the value units and scalin
 * `axes_names`: the names of the various (X,Y,Z,E,T) axes as a 5D vector of String
 * `axes_units`: the units of the various axes as a 5D vector of String
 
+* `element`: a number of range or empty range `:` spedifying to which element(s) to apply the modifiations to
+* `time`: a number of range or empty range `:` spedifying to which time(s) to apply the modifiations to
 * `value_offset`: allows to add an offset to the displayed values
 * `offset`: allows to add an offset to each of the 5 coordinates
 
@@ -1741,7 +1743,7 @@ julia> @vv "Some random RGB" rand(5,6,7,3,2)
 created data 3
 rand(5, 6, 7, 3, 2) = in_view5d
 
-julia> @vv AxisArray(rand(10,11,12,3,4),(:x,:y,:z,:liftetime, :time),(0.1u"µm",0.2u"m",0.3u"µm",1.0u"ns",2.0u"s")) # for data with axes units and names
+julia> using Unitful, AxisArrays; @vv AxisArray(rand(10,11,12,3,4),(:x,:y,:z,:liftetime, :time),(0.1u"µm",0.2u"m",0.3u"µm",1.0u"ns",2.0u"s")) # for data with axes units and names
 
 ```
 """
