@@ -366,7 +366,7 @@ function set_axis_scales_and_units(pixelsize=(1.0,1.0,1.0,1.0,1.0),
     value_scale=1.0, value_name = "intensity",value_unit = "photons",
     axes_names = ["X", "Y", "Z", "E", "T"],
     axes_units=["a.u.","a.u.","a.u.","a.u.","a.u."], myviewer=nothing; 
-    element=0,time=0,
+    element=:,time=:, # meaning all elements
     value_offset=0.0,
     offset=[0.0,0.0,0.0,0.0,0.0])
 
@@ -388,11 +388,19 @@ function set_axis_scales_and_units(pixelsize=(1.0,1.0,1.0,1.0,1.0),
         @warn "axes_units should be 5D but has only $L entries. Replacing trailing dimensions by \"a.u.\"."
         tmp=axes_units;axes_units=["a.u.","a.u.","a.u.","a.u.","a.u."]; axes_units[1:L].=tmp[:];
     end
-    jcall(myviewer, "SetAxisScalesAndUnits", Nothing, (jint,jint, jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,
-            JString,jStringArr,JString,jStringArr),
-            element,time, value_scale, pixelsize..., 
-            value_offset, offset...,
-            value_name, axes_names, value_unit, axes_units);
+    if isa(element,Colon)
+        element = 0:get_num_elements(myviewer)-1
+    end
+    if isa(time,Colon)
+        time = 0:get_num_times(myviewer)-1
+    end
+    for t in time, e in element
+        jcall(myviewer, "SetAxisScalesAndUnits", Nothing, (jint,jint, jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,jdouble,
+                JString,jStringArr,JString,jStringArr),
+                e,t, value_scale, pixelsize..., 
+                value_offset, offset...,
+                value_name, axes_names, value_unit, axes_units);
+    end
     update_panels(myviewer);
 end
 
@@ -948,7 +956,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
             set_title("View5D", myviewer)
         end
         if !isnothing(properties)  # properties win over name tags for elements
-            set_properties(properties, myviewer, element=element)
+            set_properties(properties, myviewer, element=:,time=:)
         end        
         set_elements_linked(false,myviewer)
         set_times_linked(true,myviewer)
@@ -969,10 +977,10 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
                     set_element_name(e, name, viewer)
                 end
             end
+            if !isnothing(properties)
+                set_properties(properties, viewer, element=e, time=t)
+            end        
         end
-        if !isnothing(properties)
-            set_properties(properties, viewer, element=element)
-        end        
         myviewer = viewer
     elseif mode == DisplAddElement
         command = string("AddElement", addCpx)
@@ -994,9 +1002,9 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
                 set_element_name(E, name, viewer)
             end
             myviewer = viewer
-        end
-        if !isnothing(properties)
-            set_properties(properties, myviewer, element=element)
+            if !isnothing(properties)
+                set_properties(properties, myviewer, element=e, time=:)
+            end
         end
     elseif mode == DisplAddTime
         ne = get_num_elements(viewer)
@@ -1020,7 +1028,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
                 process_keys("t",viewer)
             end
             if !isnothing(properties)
-                set_properties(properties, viewer, element=element)
+                set_properties(properties, viewer, element=:, times=t)
             end        
             myviewer = viewer
         end
@@ -1097,7 +1105,7 @@ Currently used properties are:
     `properties[:Pixels][:PhysicalSizeXUnit]`
     `properties[:Pixels][:PhysicalSizeZUnit]`
 """
-function set_properties(properties, myviewer=nothing; element=0)
+function set_properties(properties, myviewer=nothing; element=:,time=:)
     myviewer=get_viewer(myviewer)
     if haskey(properties,:Name) 
         set_title(properties[:Name], myviewer)
@@ -1121,7 +1129,7 @@ function set_properties(properties, myviewer=nothing; element=0)
         scaZ = haskey(Pixels, :PhysicalSizeZ) ? Pixels[:PhysicalSizeZ] : 1.0
         scaE = haskey(Pixels, :PhysicalSizeE) ? Pixels[:PhysicalSizeE] : 1.0 #not in the Bioformats-Spec
         scaT = haskey(Pixels, :PhysicalSizeT) ? Pixels[:PhysicalSizeT] : 1.0 #not in the Bioformats-Spec
-        scaT = haskey(Pixels, :TimeIncrement) ? Pixels[:TimeIncrement] : 1.0
+        scaT = haskey(Pixels, :TimeIncrement) ? Pixels[:TimeIncrement] : scaT
         axes_scales = (scaX,scaY,scaZ,scaE,scaT)
         axes_names = ["X", "Y", "Z", "E", "T"]
         axes_units=[unitX,unitY,unitZ,unitE,unitT]
@@ -1150,7 +1158,7 @@ function set_properties(properties, myviewer=nothing; element=0)
     end
     
     set_axis_scales_and_units(axes_scales,scaV, nameV, unitV, 
-                            axes_names, axes_units, myviewer,element=element,time=0, value_offset=value_offset, offset=offset)
+                            axes_names, axes_units, myviewer,element=element,time=time, value_offset=value_offset, offset=offset)
     if haskey(Pixels,:Channel)
         Channels = Pixels[:Channel]
         if isa(Channels,Dict)
@@ -1168,25 +1176,47 @@ end
 function axes_to_properties(axes)
     properties=Dict();
     Pixels=Dict();
-    for ax in axes
+    axes_names=[]
+    for (ax, d) in zip(axes, 1:length(axes))
         name = axisnames(ax)[1]
+        push!(axes_names, String(name))
         vals = axisvalues(ax)[1] # is a Tuple of StepRange
-        s = vals.step.hi.val # get the step value
-        u = "$(unit(vals.step))"
-        if name == :x
+        s = 1.0
+        u = ""
+        try
+            s = vals.step.hi.val # get the step value
+            u = "$(unit(vals.step))"
+        catch e
+            try
+            s = vals.step.hi # for steps without units
+            catch e
+                s = vals.step # for integer steps
+            end
+            u = "µm"
+        end
+        if d == 1 # name == :x
             Pixels[:PhysicalSizeXUnit] = u
             Pixels[:PhysicalSizeX] = s
         end
-        if name == :y
+        if d == 2 # name == :y
             Pixels[:PhysicalSizeYUnit] = u
             Pixels[:PhysicalSizeY] = s
         end
-        if name == :z
+        if d == 3 # name == :z
             Pixels[:PhysicalSizeZUnit] = u
             Pixels[:PhysicalSizeZ] = s
         end
+        if d == 4 # name == :e
+            Pixels[:PhysicalSizeEUnit] = u
+            Pixels[:PhysicalSizeE] = s
+        end
+        if d == 5 # name == :t
+            Pixels[:PhysicalSizeTUnit] = u
+            Pixels[:PhysicalSizeT] = s
+        end
     end
-    properties[:Pixels]=Pixels
+    properties[:axes_names] = axes_names
+    properties[:Pixels] = Pixels
     return properties
 end
 
@@ -1228,6 +1258,7 @@ For details see https://nanoimaging.de/View5D
 An instance (JavaCall.JavaObject) or the viewer, which can be used for further manipulation.
 
 # See also
+# @vv, @ve, @vt, @vp, @vep, @vtp: various convenient short-hand macros for displaying the data
 * `set_gamma()`: changes the gamma value to display the data (useful for enhancing low signals)
 * `process_keys()`: allows an easy remote-control of the viewer since almost all of its features can be controlled by key-strokes.
 
@@ -1244,6 +1275,7 @@ julia> v2 = view5d(img2);
 julia> v3 = view5d(img3);
 julia> using IndexFunArrays
 julia> view5d(exp_ikx((100,100),shift_by=(2.3,5.77)).+0, show_phase=true)  # shows a complex-valued phase ramp with cyclic colormap
+julia> using Unitful, AxisArrays; view5d(AxisArray(rand(10,11,12,3,4),(:x,:y,:z,:lifetime, :t),(0.1u"µm",0.2u"m",0.3u"µm",0.3u"ns",2.0u"s"))) # display an array with axes and units
 ```
 --------------------------
 Note that you can also call view5d with a `Tuple{AbstractArray, NamedTuple}` as the first argument.
@@ -1282,6 +1314,9 @@ function view5d(data, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew
         throw(ArgumentError("Data to display has more than 5 dimensions, which is the maximum number of dimensions to display."))
     end
 
+    if isa(data, AxisArray) && isnothing(properties)
+        properties = axes_to_properties(data.axes)
+    end
 
     if show_phase && eltype(data)<:Real
             data = Complex.(data) # always cast to complex, if the user wants phase display
@@ -1705,6 +1740,9 @@ julia> @vv "Some random RGB" rand(5,6,7,3,2)
 "Some random RGB" = "Some random RGB"
 created data 3
 rand(5, 6, 7, 3, 2) = in_view5d
+
+julia> @vv AxisArray(rand(10,11,12,3,4),(:x,:y,:z,:liftetime, :time),(0.1u"µm",0.2u"m",0.3u"µm",1.0u"ns",2.0u"s")) # for data with axes units and names
+
 ```
 """
 macro vv(exs...)
