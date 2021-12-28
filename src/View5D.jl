@@ -1030,7 +1030,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
                 process_keys("t",viewer)
             end
             if !isnothing(properties)
-                set_properties(properties, viewer, element=:, times=t)
+                set_properties(properties, viewer, element=:, time=t)
             end        
             myviewer = viewer
         end
