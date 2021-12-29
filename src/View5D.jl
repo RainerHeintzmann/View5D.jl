@@ -1047,7 +1047,7 @@ function add_phase(data, data_element=0, data_time=0, viewer=nothing; name=nothi
     process_keys("t") # to normalize the gray value image before we add phase
     
     for E in 0:sz[4]-1
-        phases = 180 .*(angle.(data).+pi)./pi  # in degrees
+        phases = Float32.(180 .*(angle.(data).+pi)./pi)  # in degrees. Force phase always to be Float32 independet of the Complex datatype.
         # data.unit.append("deg")  # dirty trick
         phase_elem = data_element + sz[4]
         if phase_elem >= get_num_elements(viewer)
