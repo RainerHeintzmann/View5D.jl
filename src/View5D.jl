@@ -38,6 +38,7 @@ export set_display_size, set_active_viewer, set_properties, clear_active
 export get_viewer_history, close_all, hide_all, to_front_all
 export export_marker_lists, import_marker_lists, delete_all_marker_lists, export_markers_string, empty_marker_list
 export DisplayMode, DisplAddElement, DisplAddTime, DisplNew, DisplReplace
+export set_view5d_default_size
 # export list_methods, java_memory
 # export init_layout, invalidate 
 
@@ -84,8 +85,30 @@ function __init__()
     else
         JavaCall.addClassPath(View5D_jar)
     end
+    @show default_size = estimate_default_size()
+    if !isnothing(default_size)
+        set_view5d_default_size(default_size) # overwrites the default size inside the viewer
+    end
 end
 
+# some heuristics to estimate a good size for initial viewer display.
+function estimate_default_size()
+    if Base.Sys.iswindows()
+        res = readchomp(`wmic desktopmonitor get PixelsPerXLogicalInch`);
+        reg = r"\s+(\d+)\s+"x ;
+        v = match(reg,res).captures
+        sinch = parse(Int,v[1])
+        res = readchomp(`wmic desktopmonitor get screenheight`);
+        v = match(reg,res).captures
+        sres = parse(Int,v[1])
+        fsize = sinch * 3
+        fsize = min(sres ÷ 2, fsize) 
+        return (fsize, fsize)           
+    else
+        return nothing
+    end
+    
+end
 
 Displayable = Union{Tuple,AbstractArray}
 
@@ -822,6 +845,18 @@ end
 
 viewers = Dict() # Ref[Dict] storing viewer 
 viewer_sizes = Dict() # storing the current size information as a tuple for each viewer
+view5D_settings = Dict() # stores use-definable default settings. E.g. the default display size
+
+"""
+    set_view5d_default_size(mysize=(700,700))
+    sets a new default size for new View5D viewer windows. This may be an important command to run at startup, to adapt the viewer size
+    to your screen resolution.
+
+    If you wan to change the display size of a particular viewer, use the command `set_display_size()`.
+"""
+function set_view5d_default_size(mysize=(700,700))
+    view5D_settings["default_size"] = mysize
+end
 
 function get_active_viewer(do_check_alive=true)
     if haskey(viewers,"active")
@@ -933,7 +968,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
         vn = [sizeX,sizeY,sizeZ]
         if isnothing(vs) || vs != vn
             if mode != DisplNew
-                @warn "Nonmatching new size $vn does not agree to current size $vs. Startin new viewer instead."
+                @warn "Nonmatching new size $vn does not agree to current size $vs. Starting new viewer instead."
             end
             mode = DisplNew  # ignores the user request and opens a new viewer to avoid a problem in the View5D java program
         end
@@ -948,6 +983,11 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
         myviewer=jcall(V, command, V, (jArr, jint, jint, jint, jint, jint),
                         myJArr[:], sizeX, sizeY, sizeZ, sizeE, sizeT);
         viewer_sizes[myviewer] = [sizeX,sizeY,sizeZ,sizeE,sizeT]
+        if haskey(view5D_settings,"default_size")
+            default_size = view5D_settings["default_size"]
+            set_display_size(default_size[1], default_size[2], myviewer)
+            process_keys("i", myviewer)
+        end
 
         if !isnothing(name)
             for E in 0:get_num_elements(myviewer)-1
@@ -959,7 +999,12 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
         end
         if !isnothing(properties)  # properties win over name tags for elements
             set_properties(properties, myviewer, element=:,time=:)
-        end        
+        else
+                sz = (sizeX,sizeY,sizeZ) # size(data)
+                offset=  Float64.(.-[(sz.÷2)...,zeros(5-length(sz))...])
+                set_axis_scales_and_units((1.0,1.0,1.0,1.0,1.0), 1.0,  "intensity","photons", ["X", "Y", "Z", "E", "T"], ["rel x","rel x","rel z","a.u.","a.u."], myviewer; offset=offset)
+                process_keys("i", myviewer) 
+        end
         set_elements_linked(false,myviewer)
         set_times_linked(true,myviewer)
     elseif mode == DisplReplace
@@ -1350,6 +1395,7 @@ function view5d(data, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew
     if !isnothing(gamma)
         set_gamma(gamma,myviewer, element=get_num_elements(viewer)-1)
     end
+
     if keep_zero
         set_min_max_thresh(0.0,maximum(abs.(data)),myviewer, element=get_num_elements()-1)
     end
