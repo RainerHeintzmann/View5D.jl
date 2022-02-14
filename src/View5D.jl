@@ -85,7 +85,7 @@ function __init__()
     else
         JavaCall.addClassPath(View5D_jar)
     end
-    @show default_size = estimate_default_size()
+    default_size = estimate_default_size()
     if !isnothing(default_size)
         set_view5d_default_size(default_size) # overwrites the default size inside the viewer
     end
