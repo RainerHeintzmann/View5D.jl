@@ -19,8 +19,8 @@ data3 = rand(5,5,3,4,2); # more elements
     sleep(0.1); hide_viewer() ;
 end
 
-@testset "interaction with markers" begin
-    @vv data1; # start the viewer
+@testset "interaction with markers and roi extraction" begin
+    v = @vv data1; # start the viewer
     markers = empty_marker_list(2,2)
     markers[1][3]=1.0 
     markers[2][4]=2.0 
@@ -31,6 +31,8 @@ end
     markers[4][4]=1.5 
     markers[4][5]=2.0 
     sleep(0.1); import_marker_lists(markers)
+    rois = get_rois(data1; viewer=v, do_save=false, confirm_selected=false)
+    @test length(rois) == 4
     sleep(0.1); exported = export_marker_lists()
     mydiff = exported .- markers
     for d in 1:4
