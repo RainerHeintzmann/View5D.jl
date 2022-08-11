@@ -324,7 +324,7 @@ end
 
 """
     set_axis_scales_and_units(pixelsize=(1.0,1.0,1.0,1.0,1.0),
-        value_name = "intensity",value_unit = "photons",
+        value_name = "intensity",value_unit = "a.u.",
         axis_names = ["X", "Y", "Z", "E", "T"],
         axis_units=["a.u.","a.u.","a.u.","a.u.","a.u."], myviewer=nothing; 
         element=:,time=:,
@@ -354,7 +354,7 @@ julia> set_axis_scales_and_units((1,0.02,20,1,2),20,"irradiance","W/cm^2",["posi
 ```
 """
 function set_axis_scales_and_units(pixelsize=(1.0,1.0,1.0,1.0,1.0),
-    value_scale=1.0, value_name = "intensity",value_unit = "photons",
+    value_scale=1.0, value_name = "intensity",value_unit = "a.u.",
     axes_names = ["X", "Y", "Z", "E", "T"],
     axes_units=["a.u.","a.u.","a.u.","a.u.","a.u."], myviewer=nothing; 
     element=:,time=:, # meaning all elements
@@ -964,6 +964,14 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
             process_keys("i", myviewer)
         end
 
+        if !isnothing(properties)  # properties win over name tags for elements
+            set_properties(properties, myviewer, element=:,time=:)
+        else
+                sz = (sizeX,sizeY,sizeZ) # size(data)
+                offset=  Float64.(.-[(sz.÷2)...,zeros(5-length(sz))...])
+                set_axis_scales_and_units((1.0,1.0,1.0,1.0,1.0), 1.0,  "intensity", "a.u.", ["X", "Y", "Z", "E", "T"], ["rel x","rel x","rel z","a.u.","a.u."], myviewer; offset=offset)
+                process_keys("i", myviewer) 
+        end
         if !isnothing(name)
             for E in 0:get_num_elements(myviewer)-1
                 set_element_name(E, name, myviewer)
@@ -971,14 +979,6 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
             set_title(name, myviewer)
         else
             set_title("View5D", myviewer)
-        end
-        if !isnothing(properties)  # properties win over name tags for elements
-            set_properties(properties, myviewer, element=:,time=:)
-        else
-                sz = (sizeX,sizeY,sizeZ) # size(data)
-                offset=  Float64.(.-[(sz.÷2)...,zeros(5-length(sz))...])
-                set_axis_scales_and_units((1.0,1.0,1.0,1.0,1.0), 1.0,  "intensity","photons", ["X", "Y", "Z", "E", "T"], ["rel x","rel x","rel z","a.u.","a.u."], myviewer; offset=offset)
-                process_keys("i", myviewer) 
         end
         set_elements_linked(false,myviewer)
         set_times_linked(true,myviewer)
@@ -1020,8 +1020,8 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
             set_element(-1) # go to the last element
             process_keys("t",viewer)   
             if !isnothing(name)
-                E = get_num_elements()-1
-                set_element_name(E, name, viewer)
+                # E = get_num_elements()-1
+                set_element_name(e, name, viewer)
             end
             myviewer = viewer
             if !isnothing(properties)
@@ -1189,7 +1189,7 @@ function set_properties(properties, myviewer=nothing; element=:,time=:)
         for c in Channels
             name = haskey(c, :ExcitationWavelength) ? "$(c[:ExcitationWavelength])" : "color $element"
             name = name * "/" * (haskey(c, :EmissionWavelength) ? "$(c[:EmissionWavelength])" : "color $element")
-            set_element_name(element,name, myviewer)
+            set_element_name(element, name, myviewer)
             element = element + 1
         end
     end
