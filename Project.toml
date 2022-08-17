@@ -22,6 +22,7 @@ JavaCall = "0.7.7"
 StaticArrays = "1"
 Unitful = "1.7.0"
 julia = "1, 1.6"
+NDTools = "0.4, 0.5"
 
 [extras]
 JavaCall = "494afd89-becb-516b-aafa-70d2670c0337"
