@@ -31,8 +31,9 @@ end
     markers[4][4]=1.5 
     markers[4][5]=2.0 
     sleep(0.1); import_marker_lists(markers)
-    rois = get_rois(data1; viewer=v, do_save=false, confirm_selected=false)
+    rois, pos = get_rois(data1; viewer=v, do_save=false, confirm_selected=false)
     @test length(rois) == 4
+    @test length(pos) == 4
     sleep(0.1); exported = export_marker_lists()
     mydiff = exported .- markers
     for d in 1:4
