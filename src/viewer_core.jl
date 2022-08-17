@@ -37,7 +37,7 @@ this applies to keys sent to the viewer, which can be send to a choice of window
 # This is the proper way to do this via artifacts:
 rootpath = artifact"View5D-jar"
 # @show rootpath = "C:\\Users\\pi96doc\\Documents\\Programming\\Java\\View5D"
-const View5D_jar = joinpath(rootpath, "View5D_v2.3.7.jar")
+const View5D_jar = joinpath(rootpath, "View5D_v2.3.8.jar")
 # my personal development version
 # const View5D_jar = joinpath(rootpath, "View5D_v2.jar")
 
@@ -46,7 +46,7 @@ function __init__()
     # Allows other packages to addClassPath before JavaCall.init() is invoked
     devel_path = joinpath(rootpath, "..","View5D.jar")
     if isfile(devel_path)
-        print("Found development version of View5D in the artifact directory. Using this.")
+        print("Found development version of View5D.jar in the artifact directory. Using this.")
         JavaCall.addClassPath(devel_path)
     else
         JavaCall.addClassPath(View5D_jar)
