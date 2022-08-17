@@ -10,9 +10,9 @@
 # for a full release: update the version number in View5D.jl and comment "@JuliaRegistrator register"
 
 [View5D-jar]
-git-tree-sha1 = "67ad9e812526091e56b6d0055dedea85ceb37e7e"
+git-tree-sha1 = "5a454f6ddadb2bd88921ba76c7c9b89306f7bad7"
 lazy = true
 
     [[View5D-jar.download]]
-    url = "https://github.com/RainerHeintzmann/View5D/releases/download/View5D_v2.3.7/View5D_v2.3.7-jar.tar.gz"
-    sha256 = "09a466bb845bf63cc4cd5f512b3b971a1eeb3b3bc7f567912891a8def8fa4332"
+    url = "https://github.com/RainerHeintzmann/View5D/releases/download/View5D_v2.3.8/View5D_v2.3.8-jar.tar.gz"
+    sha256 = "cc7487e450c6c666894e12a186e6b9ab9064e16e44414fc90817f69fbc854cf8"
