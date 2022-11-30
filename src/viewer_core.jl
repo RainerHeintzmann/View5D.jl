@@ -1186,6 +1186,9 @@ function set_properties(properties, myviewer=nothing; element=:,time=:)
         if isa(Channels,Dict)
             Channels=[Channels];
         end
+        if isa(element, Colon) # In case all elements are supposed to be changed
+            element=0
+        end
         for c in Channels
             name = haskey(c, :ExcitationWavelength) ? "$(c[:ExcitationWavelength])" : "color $element"
             name = name * "/" * (haskey(c, :EmissionWavelength) ? "$(c[:EmissionWavelength])" : "color $element")
@@ -1209,11 +1212,12 @@ function axes_to_properties(axes)
             s = vals.step.hi.val # get the step value
             u = "$(unit(vals.step))"
         catch e
-            try
-            s = vals.step.hi # for steps without units
-            catch e
-                s = vals.step # for integer steps
-            end
+            s = step(ax)
+            # try
+            #     s = vals.step.hi # for steps without units
+            # catch e
+            #     s = vals.step # for integer steps
+            # end
             u = "µm"
         end
         if d == 1 # name == :x

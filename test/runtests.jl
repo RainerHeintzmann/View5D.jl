@@ -12,7 +12,7 @@ data3 = rand(5,5,3,4,2); # more elements
     @vt data3; # append along time
     @vt data3; # append along time
     @vr data3; # replace first
-    w = @vv data2
+    w = @vv data2;
     @vr v data3; # replace first
     @test 6 == get_num_times();
     @test 4 == get_num_elements();
