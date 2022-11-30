@@ -60,16 +60,20 @@ end
 # some heuristics to estimate a good size for initial viewer display.
 function estimate_default_size()
     if Base.Sys.iswindows()
-        res = readchomp(`wmic desktopmonitor get PixelsPerXLogicalInch`);
-        reg = r"\s+(\d+)\s+"x ;
-        v = match(reg,res).captures
-        sinch = parse(Int,v[1])
-        res = readchomp(`wmic desktopmonitor get screenheight`);
-        v = match(reg,res).captures
-        sres = parse(Int,v[1])
-        fsize = sinch * 3
-        fsize = min(sres ÷ 2, fsize) 
-        return (fsize, fsize)           
+        try
+            res = readchomp(`wmic desktopmonitor get PixelsPerXLogicalInch`);
+            reg = r"\s+(\d+)\s+"x ;
+            v = match(reg,res).captures
+            sinch = parse(Int,v[1])
+            res = readchomp(`wmic desktopmonitor get screenheight`);
+            v = match(reg,res).captures
+            sres = parse(Int,v[1])
+            fsize = sinch * 3
+            fsize = min(sres ÷ 2, fsize) 
+            return (fsize, fsize)           
+        catch e # for some reasons some system do not return the screen size. We need to assume a default
+            return (500, 300)
+        end
     else
         return nothing
     end
