@@ -564,11 +564,21 @@ end
     imports marker lists to be stored and displayed in the viewer.
 
 # Arguments
-* `marker_lists`: a vector of `markers`, where `markers` is a vector of length 22 `Float32`. If the vector is smaller the markers are interpreted as up to 5D pixel positions only
+* `marker_lists`: a vector of `markers`, where `markers` is a vector of length 22 `Float32`. If the vector is smaller the markers are interpreted as up to 5D pixel positions only.
+                  You can also submit a vector of vectors of position-tuples (or position-vectors) structured as collection of marker lists. The numbers will be automatically starting from zero.
+                  Note that the positions when submitted via these latter modes are Julia-style, i.e. one-based rather than zero based.
 * `myviewer`: the viewer to apply this to. By default the active viewer is used
 
 # See also
 `export_marker_lists()`: The data exported in this way can be read in again by the `import_marker_lists` routine
+
+# Example:
+```jldoctest
+julia> a = rand(30,20,10);
+julia> @vt rand(30,20,10)
+rand(30, 20, 10) = nothing
+julia> import_marker_lists([[size(a).*rand(3) for n=1:7] for l=1:3])
+```
 """
 function import_marker_lists(marker_lists::Vector{T}, myviewer=nothing) where {T}
     myviewer=get_viewer(myviewer)
