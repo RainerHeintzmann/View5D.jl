@@ -538,6 +538,15 @@ function export_markers_string(myviewer=nothing)
     return jcall(myviewer, "ExportMarkers", JString, ());
 end 
 
+""" 
+    pos_marker(list, entry, pos)
+    creates a marker with only the position `pos` being filled in.
+"""
+function pos_marker(list, entry, pos=(0f0,))
+    pos5 = (n <= length(pos) ? Float32(pos[n]) : 0f0 for n in 1:5)
+    Float64.([list, entry, pos5 ..., 1.0, 1.0, pos5 ..., 1.0, 1.0, 0.0, -1.0, -1.0, -1.0, -1.0, -5.377472e6])
+end
+
 """
     empty_marker_list(lists,entries)
 creates an empty marker list with the list numbers and (empty) parent connectivity information already filled in.
@@ -547,27 +556,47 @@ creates an empty marker list with the list numbers and (empty) parent connectivi
 * entries: number of entries in each list
 """
 function empty_marker_list(lists,entries)
-    markers = [Float64.([(p-1)÷entries,mod(p-1,entries),0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,-1,-1,-1,-1,-1]) for p in 1:lists*entries]
+    [pos_marker((p-1)÷entries, mod(p-1,entries)) for p in 1:lists*entries]
 end
 
 """
-    import_marker_lists(marker_list, myviewer=nothing)
+    import_marker_lists(marker_lists, myviewer=nothing)
     imports marker lists to be stored and displayed in the viewer.
 
 # Arguments
+* `marker_lists`: a vector of `markers`, where `markers` is a vector of length 22 `Float32`. If the vector is smaller the markers are interpreted as up to 5D pixel positions only
 * `myviewer`: the viewer to apply this to. By default the active viewer is used
 
-# Returns
-* `markers`: an array of arrays of double. Please see `export_marker_lists` for a description of the meaning
-
 # See also
-export_marker_lists(): The data exported in this way can be read in again by the import_marker_lists routine
+`export_marker_lists()`: The data exported in this way can be read in again by the `import_marker_lists` routine
 """
-function import_marker_lists(marker_lists::Vector{Vector{T}}, myviewer=nothing) where {T}
+function import_marker_lists(marker_lists::Vector{T}, myviewer=nothing) where {T}
     myviewer=get_viewer(myviewer)
-    if T != Float32
-        marker_lists = [convert.(Float32,marker_lists[n]) for n in 1:length(marker_lists)]
+    marker_lists = let 
+        if T <: Number
+            [marker_lists]
+        else
+            marker_lists
+        end
     end
+    if T <: Vector && (eltype(T) <: Tuple || eltype(T) <: Vector)
+        # @show "found list of lists"
+        ml = Vector{Float32}[]
+        for l in 1:lastindex(marker_lists)
+            for n in 1:lastindex(marker_lists[l])
+                push!(ml, pos_marker(l-1, n-1, marker_lists[l][n] .- 1))
+            end
+        end
+        marker_lists = ml
+    end
+    if (length(marker_lists)>0 && length(marker_lists[1]) < 6)
+        @show "found list of positions"
+        marker_lists = [pos_marker(0, n-1, marker_lists[n] .- 1) for n in 1:lastindex(marker_lists)]
+    end
+    if eltype(marker_lists) != Float64
+        marker_lists = [convert.(Float64, marker_lists[n]) for n in 1:lastindex(marker_lists)]
+    end
+    # @show marker_lists
     jfloatArrArr = Vector{JavaObject{Vector{jfloat}}}
     converted = JavaCall.convert_arg.(Vector{jfloat}, marker_lists)
     GC.@preserve converted begin
