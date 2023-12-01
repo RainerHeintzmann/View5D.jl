@@ -1104,10 +1104,36 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
     return myviewer
 end
 
+"""
+    optional_normalize_display(data, viewer=nothing, element=0, min_ratio=1e6)
+Checks the gray-value range of the data and normalizes zero to max in case the relative contrast is below 1e-6.
+Otherwise it normalizes min to max.
+
+Arguments:
++ data: Data to dermine normalization from
++ viewer: viewer to apply normalization to
++ element: element to apply it to
++ min_ratio: the minimum contrast ratio (towards zero) to require to do apply min-max rather that zero to max display normalization
+"""
+function optional_normalize_display(data, viewer=nothing; element=0, min_ratio=1e6)
+    if !(eltype(data) <: Real)
+        data = abs.(data);
+    end
+    mymin = minimum(data);
+    mymax = maximum(data);
+    if ((mymax - mymin)*min_ratio < mymax)
+        mymin = 0;
+    end
+    println("display normalized to $(mymin) to $(mymax).")
+    set_min_max_thresh(mymin, mymax, viewer; element=element)
+    update_panels(viewer)
+end
+
 function add_phase(data, data_element=0, data_time=0, viewer=nothing; name=nothing)
     sz=expand_size(size(data),5)
     # set_time(-1) # go to the last slice
-    process_keys("t") # to normalize the gray value image before we add phase
+    # process_keys("t") # to normalize the gray value image before we add phase
+    optional_normalize_display(data, viewer);
     
     for E in 0:sz[4]-1
         phases = Float32.(180 .*(angle.(data).+pi)./pi)  # in degrees. Force phase always to be Float32 independet of the Complex datatype.
