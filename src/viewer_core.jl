@@ -1136,7 +1136,7 @@ function add_phase(data, data_element=0, data_time=0, viewer=nothing; name=nothi
     optional_normalize_display(data, viewer);
     
     for E in 0:sz[4]-1
-        phases = Float32.(180 .*(angle.(data).+pi)./pi)  # in degrees. Force phase always to be Float32 independet of the Complex datatype.
+        phases = Float32.(180 .*angle.(data)./pi)  # in degrees. Force phase always to be Float32 independet of the Complex datatype.
         # data.unit.append("deg")  # dirty trick
         phase_elem = data_element + sz[4]
         if phase_elem >= get_num_elements(viewer)
@@ -1164,7 +1164,8 @@ function add_phase(data, data_element=0, data_time=0, viewer=nothing; name=nothi
         end
         set_value_unit("deg", viewer;element = phase_elem)
         #@show ne+E
-        set_min_max_thresh(0.0, 360.0, viewer;element = phase_elem) # to set the color to the correct values
+        # It is unclear, why this hast o be set to 180.02, but <= 180.01 causes zeros in the phase display!
+        set_min_max_thresh(-180.02, 180.02, viewer;element = phase_elem) # to set the color to the correct values
         #update_panels()
         #process_keys("eE") # to normalize this element and force an update also for the gray value image
         #to_front()    
