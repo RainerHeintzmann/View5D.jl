@@ -1,7 +1,7 @@
 name = "View5D"
 uuid = "90d841e0-6953-4e90-9f3a-43681da8e949"
 authors = ["rheintzmann <heintzmann@gmail.com>"]
-version = "0.4.3"
+version = "0.4.4"
 
 [deps]
 AxisArrays = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
