@@ -1164,7 +1164,7 @@ function add_phase(data, data_element=0, data_time=0, viewer=nothing; name=nothi
         set_value_unit("deg", viewer;element = phase_elem)
         #@show ne+E
         # It is unclear, why this hast o be set to 180.02, but <= 180.01 causes zeros in the phase display!
-        set_min_max_thresh(-180.02, 180.02, viewer;element = phase_elem) # to set the color to the correct values
+        set_min_max_thresh(-180.0, 180.0, viewer;element = phase_elem) # to set the color to the correct values
         #update_panels()
         #process_keys("eE") # to normalize this element and force an update also for the gray value image
         #to_front()    

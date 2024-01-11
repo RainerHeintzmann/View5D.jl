@@ -1,19 +1,23 @@
 # using Tar, Inflate, SHA
 # cd("C:\\Users\\pi96doc\\Documents\\Programming\\Java\\View5D")
-# filename = "View5D_v2.3.9-jar.tar.gz"
-# println("git-tree-sha1 = \"", Tar.tree_hash(IOBuffer(inflate_gzip(filename))),"\"")
-# println("sha256 = \"", bytes2hex(open(sha256, filename)), "\"")
-# https://github.com/RainerHeintzmann/View5D/releases/download/View5D_v2.3.9/View5D_v2.3.9-jar.tar.gz
-# or easier: include("src\\GetArtifactInfo.jl")
+# V = 2; VV = 5; VVV = 2;
+# include("src\\GetArtifactInfo.jl")
+
+# filename = "View5D_v2.5.2-jar.tar.gz"
+# https://github.com/RainerHeintzmann/View5D/releases/download/View5D_v2.5.2/View5D_v2.5.2-jar.tar.gz
 # replace the code below with the appropriate new entries
 #
 # remember to change the version number in filename and 2x in the url AND in the View5D.jl file!
 # for a full release: update the version number in View5D.jl and comment "@JuliaRegistrator register"
+# For reference the lines to generate the hashes below
+# println("git-tree-sha1 = \"", Tar.tree_hash(IOBuffer(inflate_gzip(filename))),"\"")
+# println("sha256 = \"", bytes2hex(open(sha256, filename)), "\"")
+# https://github.com/RainerHeintzmann/View5D/releases/download/View5D_v2.5.2/View5D_v2.5.2-jar.tar.gz
 
 [View5D-jar]
-git-tree-sha1 = "a269e873a9d77bccaed5a3de93b6ef8a81c4a831"
+git-tree-sha1 = "dd8217b7552770902d20c54f03b155f114e864b5"
 lazy = true
 
     [[View5D-jar.download]]
-    url = "https://github.com/RainerHeintzmann/View5D/releases/download/View5D_v2.3.9/View5D_v2.3.9-jar.tar.gz"
-    sha256 = "7d912ebf684a0b4074870016ab34d2817f49ccd30ce6f6994851364112d621c2"
+    url = "https://github.com/RainerHeintzmann/View5D/releases/download/View5D_v2.5.2/View5D_v2.5.2-jar.tar.gz"
+    sha256 = "aca6efbb26c63141f7c764bd2e7858421edba5740529684a7e150e0d24de3830"
