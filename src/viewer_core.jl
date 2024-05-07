@@ -930,12 +930,12 @@ function check_alive(viewer)
             if num_elem >= 0
                 return viewer
             else
-                @warn "View5D: viewer not existing."
+                # @warn "View5D: viewer not existing."
                 remove_viewer(viewer)
                 return nothing
             end
         catch
-            @warn "View5D: viewer not existing."
+            # @warn "View5D: viewer not existing."
             remove_viewer(viewer)
             return nothing
         end
@@ -1113,8 +1113,9 @@ Arguments:
 + viewer: viewer to apply normalization to
 + element: element to apply it to
 + min_ratio: the minimum contrast ratio (towards zero) to require to do apply min-max rather that zero to max display normalization
++ verbose: if true, the normalization range is printed to the console
 """
-function optional_normalize_display(data, viewer=nothing; element=0, min_ratio=1e6)
+function optional_normalize_display(data, viewer=nothing; element=0, min_ratio=1e6, verbose=false)
     if !(eltype(data) <: Real)
         data = abs.(data);
     end
@@ -1123,7 +1124,9 @@ function optional_normalize_display(data, viewer=nothing; element=0, min_ratio=1
     if ((mymax - mymin)*min_ratio < mymax)
         mymin = 0;
     end
-    println("display normalized to $(mymin) to $(mymax).")
+    if verbose
+        println("display normalized to $(mymin) to $(mymax).")
+    end
     set_min_max_thresh(mymin, mymax, viewer; element=element)
     update_panels(viewer)
 end

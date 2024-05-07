@@ -114,7 +114,9 @@ created data 3
 function vt(data, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, times_linked=false)
 viewer = get_viewer(viewer, ignore_nothing=true);
 viewer = vv(data, viewer; gamma=gamma, mode=DisplAddTime, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
-set_times_linked(times_linked, viewer)
+if !isnothing(viewer)
+    set_times_linked(times_linked, viewer)
+end
 end
 
 """
@@ -170,27 +172,26 @@ alt_name=nothing
 viewer=nothing  # by default the active viewer is used
 value = ""
 for ex in exs
-    varname = sprint(Base.show_unquoted, ex)
+    varname = sprint(Base.show_unquoted, ex);
     if isnothing(alt_name)            
-        name = :(println($(esc(varname))*" = ",
-            begin local value=display_array($(esc(ex)),$(esc(varname)),$(mystarter),$(esc(viewer))) end))
+        name = :(begin local value=display_array($(esc(ex)),$(esc(varname)),$(mystarter),$(esc(viewer))) end)
     else
-        name = :(println($(esc(varname))*" = ",
-            begin local value=display_array($(esc(ex)),$(esc(alt_name)),$(mystarter),$(esc(viewer))) end))
+        name = :(begin local value=display_array($(esc(ex)),$(esc(alt_name)),$(mystarter),$(esc(viewer))) end)
     end
-
     push!(blk.args, name)
+
     if typeof(ex)==String
-        alt_name = ex
+        alt_name = ex  # define this alt_name for the next round. It will generate the expression "alt_name = nothing" which has no effect.
     else 
         alt_name = nothing
+        if typeof(ex) == Symbol # && typeof(eval(ex)) == JavaCall.JavaObject{Symbol("view5d.View5D")}
+            viewer=ex;  # if a viewer is provided as argument, it will be used for display in the next (and future) rounds.
+        end
     end
-    if typeof(ex) == Symbol # && typeof(eval(ex)) == JavaCall.JavaObject{Symbol("view5d.View5D")}
-        viewer=ex
-    end
+
 end
-isempty(exs) || push!(blk.args, :value) # the second part ensures that the result of the display is the viewer
-return blk # blk
+isempty(exs) || push!(blk.args, :value); # the second part ensures that the result of the display is the viewer
+return blk; # blk
 end
 
 """
@@ -212,7 +213,7 @@ julia> using Unitful, AxisArrays; @vv AxisArray(rand(10,11,12,3,4),(:x,:y,:z,:li
 ```
 """
 macro vv(exs...)
-do_start(exs; mystarter=vv)
+    do_start(exs; mystarter=vv);
 end
 
 """
@@ -235,7 +236,7 @@ rand(5, 4, 7, 1, 2) = in_view5d
 ```
 """
 macro ve(exs...)
-do_start(exs; mystarter=ve)
+    do_start(exs; mystarter=ve)
 end
 
 """
@@ -243,7 +244,7 @@ end
 a conveniance macro in its usage similar to `@show`, displaying also phase information using view5d. See `@vv` and `vp` for details. 
 """
 macro vp(exs...)
-do_start(exs; mystarter=vp)
+    do_start(exs; mystarter=vp)
 end
 
 """
@@ -255,7 +256,7 @@ Note that variables of String type or expressions in strings do currently not wo
 ```
 """
 macro vt(exs...)
-do_start(exs; mystarter=vt)
+    do_start(exs; mystarter=vt)
 end
 
 """
@@ -267,19 +268,19 @@ Note that variables of String type or expressions in strings do currently not wo
 ```
 """
 macro vr(exs...)
-do_start(exs; mystarter=vr)
+    do_start(exs; mystarter=vr)
 end
 
 macro vep(exs...)
-do_start(exs; mystarter=vep)
+    do_start(exs; mystarter=vep)
 end
 
 macro vtp(exs...)
-do_start(exs; mystarter=vtp)
+    do_start(exs; mystarter=vtp)
 end
 
 macro vrp(exs...)
-do_start(exs; mystarter=vrp)
+    do_start(exs; mystarter=vrp)
 end
 
 #=  Missing implementations from Java:

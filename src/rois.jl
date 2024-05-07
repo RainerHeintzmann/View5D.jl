@@ -57,19 +57,24 @@ The user interaction is saved in a file `coord_filename` and reloaded automatica
 
 #arguments
 + `data` : data to extract the regions of interest from
++ `positions`: if supplied, the positions are used instead of selecting them interactively
++ `viewer`: a pre-existing viewer to use for the user interaction
 + `overwrite`: boolean flag indicating weather a pre-existing file should be loaded or overwritten.
 + `coord_filename`: filname where to save the user-interaction to
 + `roi_size` : size of the region of interest to extract
 + `do_save`:   boolean defining whether to serialize the user interaction to disk
 + `confirm_selected`: if true, a prompt waits for user interaction finished.
++ `verbose`: if true, the number of selected ROIs is printed
 
 #returns
 a tuple of the extracted ROIs and the selected positions
 The latter can be resupplied via the `positions` argument
 """
-function get_rois(data; positions=nothing, viewer=nothing, overwrite=false, confirm_selected=true, do_save=true, coord_filename="selected_coordinates.coords", roi_size=(16,16))
+function get_rois(data; positions=nothing, viewer=nothing, overwrite=false, confirm_selected=true, do_save=true, coord_filename="selected_coordinates.coords", roi_size=(16,16), verbose=false)
     bp = get_positions(data; positions=positions, viewer=viewer, overwrite=overwrite, confirm_selected=confirm_selected, do_save=do_save, coord_filename=coord_filename)
-    println("$(length(bp)) ROIs selected.")
+    if verbose
+        println("$(length(bp)) ROIs selected.")
+    end
     rois = []
     for n in 1:length(bp)
         pos = Tuple(round.(Int,bp[n]))

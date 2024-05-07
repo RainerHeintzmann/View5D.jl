@@ -1,7 +1,7 @@
 name = "View5D"
 uuid = "90d841e0-6953-4e90-9f3a-43681da8e949"
 authors = ["rheintzmann <heintzmann@gmail.com>"]
-version = "0.4.5"
+version = "0.5"
 
 [deps]
 AxisArrays = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
@@ -17,12 +17,12 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 [compat]
 AxisArrays = "0.4.3,0.4.6"
 Colors = "0.12.7, 0.12.8"
-ImageCore = "0.8.21, 0.9"
-JavaCall = "0.7.7, 0.7.8"
+ImageCore = "0.8.21, 0.9, 0.10"
+JavaCall = "0.7.7, 0.7.8, 0.8"
 StaticArrays = "1"
-Unitful = "1.7.0 - 1.12"
-julia = "1, 1.6"
-NDTools = "0.4, 0.5"
+Unitful = "1"
+julia = "1, 1.6, 1.7, 1.8, 1.9, 1.10"
+NDTools = "0.4, 0.5, 0.6"
 
 [extras]
 JavaCall = "494afd89-becb-516b-aafa-70d2670c0337"

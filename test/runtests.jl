@@ -9,17 +9,16 @@ data3 = rand(5,5,3,4,2); # more elements
 @testset "start viewers" begin
     v = @vv data1; # start the viewer
     @ve data2; # append along element
-    @vt data3; # append along time
-    @vt data3; # append along time
+    @vt "Hi there" data3 "ignor this" data3; # append along time
     @vr data3; # replace first
     w = @vv data2;
-    @vr v data3; # replace first
+    @vr "Hello" v data3; # replace first
     @test 6 == get_num_times();
     @test 4 == get_num_elements();
     sleep(0.1); hide_viewer() ;
 end
 
-@testset "interaction with markers and roi extraction" begin
+@testset "markers, rois" begin
     v = @vv data1; # start the viewer
     markers = empty_marker_list(2,2)
     markers[1][3]=1.0 
@@ -50,7 +49,7 @@ data1 = rand(5,5,3,1,1) .+ 1im.*rand(5,5,3,1,1);
 data2 = rand(5,5,3,1,1) .+ 1im.*rand(5,5,3,1,1);
 data3 = rand(5,5,3,2,1) .+ 1im.*rand(5,5,3,2,1); # more elements
 
-@testset "complex-valued display" begin
+@testset "complex-vals" begin
     @test nothing != @vp data1; # start a new viewer in phase mode
     @test nothing == set_gamma(1.0);
     @test nothing != @vep data2; # start a new viewer in phase mode
@@ -58,7 +57,7 @@ data3 = rand(5,5,3,2,1) .+ 1im.*rand(5,5,3,2,1); # more elements
     @vrp data3; # replace phase data
 end
 
-@testset "view5d datatypes" begin
+@testset "datatypes" begin
     @test nothing != view5d(rand(Float32,2,2,2,2,2)) # -> float
     @test nothing != view5d(rand(Float64,2,2,2,2,2)) # -> double
     @test nothing != view5d(rand(ComplexF32,2,2,2,2,2)) # > Complex
