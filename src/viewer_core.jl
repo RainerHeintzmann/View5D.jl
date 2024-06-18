@@ -1050,7 +1050,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
         command = string("AddElement", addCpx)
         nt = get_num_times(viewer)
         if sizeT != nt
-            throw(ArgumentError("Added elements, the number of times $nt in the viewer need to corrspond to the time dimension of this data $sizeT."))
+            throw(ArgumentError("Added elements, the number of times $nt in the viewer need to correspond to the time dimension of this data $sizeT."))
         end
         size3d = sizeX*sizeY*sizeZ
         for e in 0:sizeE-1
@@ -1073,7 +1073,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
     elseif mode == DisplAddTime
         ne = get_num_elements(viewer)
         if sizeE > ne
-            throw(ArgumentError("Added times, the number of elements $ne in the viewer need to be larger or equation to the elements currently being added $sizeE."))
+            throw(ArgumentError("Added times, the number of elements $ne in the viewer need to be larger or equaal to the elements currently being added $sizeE."))
         end
         command = string("AddTime", addCpx)
         size4d = sizeX*sizeY*sizeZ*sizeE
