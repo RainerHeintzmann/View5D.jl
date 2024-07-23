@@ -785,9 +785,6 @@ end
 converts an array to a jtype array
 """
 function to_jtype(anArray)
-    if isa(anArray, Base.Broadcast.Broadcasted)
-        anArray = collect(anArray)
-    end
     if eltype(anArray) <: CartesianIndex
         anArray = Tuple.(anArray)
     end
@@ -1425,6 +1422,10 @@ function view5d(data, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew
             throw(e)
         end
     end
+    if isa(data, Base.Broadcast.Broadcasted)
+        data = collect(data)
+    end
+
     if !isa(data, AbstractArray)
         return nothing # just ignore this display. The macro will interpret this as "not displayable"
     elseif ndims(data)> 5
