@@ -785,6 +785,12 @@ end
 converts an array to a jtype array
 """
 function to_jtype(anArray)
+    if isa(anArray, Base.Broadcast.Broadcasted)
+        anArray = collect(anArray)
+    end
+    if eltype(anArray) <: CartesianIndex
+        anArray = Tuple.(anArray)
+    end
     ArrayElement = anArray[1]
     if is_complex(anArray)
         jtype=jfloat
@@ -815,6 +821,19 @@ function to_jtype(anArray)
     elseif isa(ArrayElement, Gray)
         anArray = rawview(channelview(permutedims(expanddims(anArray,5),(2,1,3,4,5))))        
         # anArray = expanddims(rawview(channelview(anArray)),5)
+    elseif isa(ArrayElement, NTuple)
+        singleton_dim = (ndims(anArray) < 4 || size(anArray,4) == 1) ? 4 : 5
+        sz = NDTools.expand_size(size(anArray), ntuple((d)->1, 5))
+        if (sz[singleton_dim] != 1)
+            error("Arrays of Tuples can only be visualized if the 4th or 5th dimension is singleton.")
+        end    
+        newsize = ntuple((d) -> (d==1) ? length(ArrayElement) : sz[d-1], Val(5)) 
+        anArray = reinterpret(eltype(ArrayElement), @view anArray[:])
+        if (singleton_dim == 4)
+            anArray = permutedims(reshape(anArray, newsize), (2, 3, 4, 1, 5))
+        else
+            anArray = permutedims(reshape(anArray, newsize), (2, 3, 4, 5, 1))
+        end
     end
     ArrayElement = anArray[1]
     if isa(ArrayElement, Float32)
