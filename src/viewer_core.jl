@@ -10,7 +10,8 @@ export set_display_size, set_active_viewer, set_properties, clear_active
 export get_viewer_history, close_all, hide_all, to_front_all
 export export_marker_lists, import_marker_lists, delete_all_marker_lists, export_markers_string, empty_marker_list
 export DisplayMode, DisplAddElement, DisplAddTime, DisplNew, DisplReplace
-export set_view5d_default_size
+export set_view5d_default_size, add_colormap
+export get_active_element, get_active_time, set_position, set_colormap_no
 # export list_methods, java_memory
 # export init_layout, invalidate 
 
@@ -171,6 +172,73 @@ function set_gamma(gamma=1.0, myviewer=nothing; element=0)
 end
 
 """
+    add_colormap(mymap::Vector{RGB{T}}, myviewer=get_viewer()) where {T}
+adds a colormap to the viewer.
+
+# Arguments:
+* mymap: a colormap as a Vector of RGBs. See https://juliagraphics.github.io/Colors.jl/stable/colormapsandcolorscales/
+* myviewer: the viewer to apply this to. By default the active viewer is used.
+* N: the number of colors in the colormap. Default is 255.
+
+For unclear reasons the use-defined colormaps do not show up in the menu, but are accessible via "c".
+# Example:
+```jldoctest
+julia> v = @vv 2 .*(rand(10,10,10).-0.5)
+julia> add_colormap(diverging_palette(0, 200, 32))
+julia> set_min_max_thresh(-1.0, 1.0, v)
+```
+
+"""
+function add_colormap(mymap::Vector{RGB{T}}, myviewer=get_viewer()) where {T}
+    sz = length(mymap);
+    red = zeros(UInt8, sz)
+    green = zeros(UInt8, sz)
+    blue = zeros(UInt8, sz)
+    red .= (round(UInt8, mymap[p].r*255) for p in 1:sz)
+    green .= (round(UInt8, mymap[p].g*255) for p in 1:sz)
+    blue .= (round(UInt8, mymap[p].b*255) for p in 1:sz)
+    rb = reinterpret(Int8, red)
+    gb = reinterpret(Int8, green)
+    bb = reinterpret(Int8, blue)
+
+    jbyteArr = Vector{jbyte}
+    jcall(myviewer, "add_colormap", Nothing, (jint, jbyteArr, jbyteArr, jbyteArr), sz, rb, gb, bb);
+    update_panels(myviewer)
+end
+
+function set_colormap_no(no, elem= nothing, myviewer=get_viewer())
+    if isnothing(elem)
+        elem=get_active_element(myviewer)
+    end
+    jcall(myviewer, "set_colormap_no", Nothing, (jint, jint), no, elem);
+end
+
+"""
+    add_colormap(cmap_name="RdBu", myviewer=get_viewer(); N=255)
+adds a colormap ny name to the viewer.
+
+# Arguments:
+* cmap_name: a name that the function colormaps in the Colors package accepts. See https://juliagraphics.github.io/Colors.jl/stable/colormapsandcolorscales/ for possible names.
+* myviewer: the viewer to apply this to. By default the active viewer is used.
+* N: the number of colors in the colormap. Default is 255.
+
+For unclear reasons the use-defined colormaps do not show up in the menu, but are accessible via "c".
+# Example:
+```jldoctest
+julia> v = @vv 2 .*(rand(10,10,10).-0.5)
+julia> add_colormap("RdBu")
+```
+"""
+function add_colormap(cmap_name="RdBu", myviewer=get_viewer(); N=255)
+    mymap = colormap(cmap_name, N);
+    add_colormap(mymap, myviewer)
+    if cmap_name == "RdBu"
+        set_min_max_thresh(-1.0, 1.0, myviewer)
+        update_panels(myviewer)
+    end
+end
+
+"""
     set_time(mytime=-1, myviewer=nothing)
 
 sets the display position to mytime. A negative value means last timepoint
@@ -323,6 +391,28 @@ gets the number of currently existing elements in the viewer
 function get_num_elements(myviewer=nothing)
     myviewer=get_viewer(myviewer)
     num_elem=jcall(myviewer, "getNumElements", jint, ());
+end
+
+"""
+    get_active_element(myviewer=get_viewer(myviewer))
+gets the currently active element number in the viewer
+
+# Arguments
+* `myviewer`: the viewer to apply this to. By default the active viewer is used.
+"""
+function get_active_element(myviewer=get_viewer(myviewer))
+    return jcall(myviewer, "get_active_element", jint, ());
+end
+
+"""
+    get_active_time(myviewer=get_viewer(myviewer))
+gets the currently active time number in the viewer
+
+# Arguments
+* `myviewer`: the viewer to apply this to. By default the active viewer is used.
+"""
+function get_active_time(myviewer=get_viewer(myviewer))
+    return jcall(myviewer, "get_active_time", jint, ());
 end
 
 """
@@ -1069,6 +1159,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
             throw(ArgumentError("Added elements, the number of times $nt in the viewer need to correspond to the time dimension of this data $sizeT."))
         end
         size3d = sizeX*sizeY*sizeZ
+        e_offset = get_num_elements(viewer)
         for e in 0:sizeE-1
             dummy=jcall(viewer, command, V, (jArr, jint, jint, jint, jint, jint),
                             myJArr[e*size3d+1:end],sizeX, sizeY, sizeZ, sizeE, sizeT); 
@@ -1079,7 +1170,7 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
             process_keys("t",viewer)   
             if !isnothing(name)
                 # E = get_num_elements()-1
-                set_element_name(e, name, viewer)
+                set_element_name(e+e_offset, name, viewer)
             end
             myviewer = viewer
             if !isnothing(properties)

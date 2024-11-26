@@ -13,16 +13,16 @@ This is just a shorthand for the function `view5d`. See `view5d` for arguments d
 See documentation of `view5d` for explanation of the parameters.
 """
 function vv(data, viewer=nothing; gamma=nothing, mode::DisplayMode =DisplNew, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing)
-view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+    view5d(data, viewer; gamma=gamma, mode=mode, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
 end
 
 function display_array(arr, name, disp=vv, viewer=nothing) # AbstractArray{N,T} where {N,T}
-v=disp(arr,viewer; name=name)
-if isnothing(v)
-    v= nothing # repr(begin local value = arr end) # returns a representation (a String)
-end
-return v
-# return "in_view5d"
+    v=disp(arr,viewer; name=name)
+    if isnothing(v)
+        v= nothing # repr(begin local value = arr end) # returns a representation (a String)
+    end
+    return v
+    # return "in_view5d"
 end
 
 # function display_array(ex, name, disp=vv, viewer=nothing)
@@ -60,13 +60,13 @@ See documentation of `view5d` for explanation of the parameters.
 `elements_linked`: determines wether all elements are linked together (no indidual scaling and same color)
 """
 function ve(data, viewer=nothing; gamma=nothing, element=0, time=0, show_phase=false, keep_zero=false, name=nothing, title=nothing, elements_linked=false)
-viewer = get_viewer(viewer, ignore_nothing=true)
-if isnothing(viewer)
-    vv(data, viewer; gamma=gamma, mode=DisplAddElement, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
-else
-    set_elements_linked(elements_linked, viewer)
-    vv(data, viewer; gamma=gamma, mode=DisplAddElement, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
-end
+    viewer = get_viewer(viewer, ignore_nothing=true)
+    if isnothing(viewer)
+        vv(data, viewer; gamma=gamma, mode=DisplAddElement, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+    else
+        set_elements_linked(elements_linked, viewer)
+        vv(data, viewer; gamma=gamma, mode=DisplAddElement, element=element, time=time, show_phase=show_phase, keep_zero=keep_zero, name=name, title=title)
+    end
 end
 
 """
@@ -166,7 +166,7 @@ end
 
 
 ## just a non-exported helper function to be used in the various macros below
-function do_start(exs;mystarter=vv)
+function do_start(exs; mystarter=vv)
 blk = Expr(:block)
 alt_name=nothing
 viewer=nothing  # by default the active viewer is used
