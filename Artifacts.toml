@@ -16,5 +16,5 @@ git-tree-sha1 = "35fd709e1382615353426673e395a58c131cb6f0"
 lazy = true
 
     [[View5D-jar.download]]
-    url = "https://github.com/RainerHeintzmann/View5D/releases/download/View5D_-2.5.5/View5D_v2.5.5.tar.gz"
+    url = "https://github.com/bionanoimaging/View5D/releases/download/View5D_v2.5.5/View5D_-2.5.5-SNAPSHOT.tar.gz"    
     sha256 = "0c0306a1628f040ff65b3f153c96df86ce998ffdc6ff3dc0852793872bfc5f42"
