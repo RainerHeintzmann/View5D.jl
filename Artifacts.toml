@@ -1,7 +1,8 @@
 # using Tar, Inflate, SHA
 # cd("C:\\Users\\pi96doc\\Documents\\Programming\\Java\\View5D")
 # V = 2; VV = 5; VVV = 5; Suffix = "-SNAPSHOT";
-# include("src\\GetArtifactInfo.jl")
+# VJ = 0; VVJ=5; VVVJ=3;
+# include("src\\get_artifact_info.jl")
 # replace the code below with the printout
 #
 # remember to change the version number in the View5D.jl Project.toml file!
@@ -10,11 +11,12 @@
 # For reference the lines to generate the hashes below
 # println("git-tree-sha1 = \"", Tar.tree_hash(IOBuffer(inflate_gzip(filename))),"\"")
 # println("sha256 = \"", bytes2hex(open(sha256, filename)), "\"")
-
+# https://github.com/RainerHeintzmann/View5D.jl/releases/download/v0.5.3/View5D_-2.5.5-SNAPSHOT.tar.gz
+# https://github.com/RainerHeintzmann/View5D.jl/releases/download/v0.5.3/View5D_-2.5.5-SNAPSHOT.tar.gz
 [View5D-jar]
 git-tree-sha1 = "35fd709e1382615353426673e395a58c131cb6f0"
 lazy = true
 
     [[View5D-jar.download]]
-    url = "https://github.com/bionanoimaging/View5D/releases/download/View5D_v2.5.5/View5D_-2.5.5-SNAPSHOT.tar.gz"    
+    url = "https://github.com/RainerHeintzmann/View5D.jl/releases/download/v0.5.3/View5D_-2.5.5-SNAPSHOT.tar.gz"      
     sha256 = "0c0306a1628f040ff65b3f153c96df86ce998ffdc6ff3dc0852793872bfc5f42"
