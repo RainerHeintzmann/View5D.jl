@@ -94,10 +94,11 @@ end
     v = view5d(rand(Float32,2,2,2,2,3))
     @test 3 == get_num_times(v)
     @test 2 == get_num_elements(v)
-
+    @test nothing == close_all()
 end
 
 @testset "set functions" begin
     v = view5d(rand(Float32,2,2,2,2,3))
-    set_colormap_no(13, v)
+    @test set_colormap_no(13, nothing, v) == nothing
+    @test nothing == close_all()
 end
