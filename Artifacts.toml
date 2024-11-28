@@ -14,9 +14,9 @@
 # https://github.com/bionanoimaging/View5D/releases/download/View5D_v2.5.5/View5D_-2.5.5-SNAPSHOT-jar.tar.gz
 
 [View5D-jar]
-git-tree-sha1 = "f9161b15ca767c30153fe71f62eac9810c7e0290"
+git-tree-sha1 = "006044302a745dec440b5de4165a6a9e7ee2ae4a"
 lazy = true
 
     [[View5D-jar.download]]
     url = "https://github.com/bionanoimaging/View5D/releases/download/View5D_v2.5.5/View5D_-2.5.5-SNAPSHOT-jar.tar.gz"
-    sha256 = "9ac53a78e0c44294cb5140ef7d400bbe7890036d3f23547d85fbd70deb96e1b0"
+    sha256 = "7410ec419274e45cc2240811170e9c4c3c2b5a6fea988d9d4bf2352233079e6d"
