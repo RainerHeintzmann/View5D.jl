@@ -1,7 +1,6 @@
 # using Tar, Inflate, SHA
 # cd("C:\\Users\\pi96doc\\Documents\\Programming\\Java\\View5D")
 # V = 2; VV = 5; VVV = 5; Suffix = "-SNAPSHOT";
-# VJ = 0; VVJ=5; VVVJ=3;
 # include("src\\get_artifact_info.jl")
 # replace the code below with the printout
 #
