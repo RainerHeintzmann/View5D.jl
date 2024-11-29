@@ -172,24 +172,25 @@ function set_gamma(gamma=1.0, myviewer=nothing; element=0)
 end
 
 """
-    add_colormap(mymap::Vector{RGB{T}}, myviewer=get_viewer()) where {T}
+    add_colormap(mymap::Vector{RGB{T}}, myviewer=get_viewer(); map_type=0) where {T}
 adds a colormap to the viewer.
 
 # Arguments:
 * mymap: a colormap as a Vector of RGBs. See https://juliagraphics.github.io/Colors.jl/stable/colormapsandcolorscales/
 * myviewer: the viewer to apply this to. By default the active viewer is used.
 * N: the number of colors in the colormap. Default is 255.
+* map_type: 0 for a normal colormap, 1 for a divergent colormap
 
 For unclear reasons the use-defined colormaps do not show up in the menu, but are accessible via "c".
 # Example:
 ```jldoctest
 julia> v = @vv 2 .*(rand(10,10,10).-0.5)
-julia> add_colormap(diverging_palette(0, 200, 32))
+julia> add_colormap(diverging_palette(0, 200, 32); map_type=1)
 julia> set_min_max_thresh(-1.0, 1.0, v)
 ```
 
 """
-function add_colormap(mymap::Vector{RGB{T}}, myviewer=get_viewer()) where {T}
+function add_colormap(mymap::Vector{RGB{T}}, myviewer=get_viewer(); map_type::Int=0) where {T}
     sz = length(mymap);
     red = zeros(UInt8, sz)
     green = zeros(UInt8, sz)
@@ -202,10 +203,21 @@ function add_colormap(mymap::Vector{RGB{T}}, myviewer=get_viewer()) where {T}
     bb = reinterpret(Int8, blue)
 
     jbyteArr = Vector{jbyte}
-    jcall(myviewer, "add_colormap", Nothing, (jint, jbyteArr, jbyteArr, jbyteArr), sz, rb, gb, bb);
+    jcall(myviewer, "add_colormap", Nothing, (jint, jbyteArr, jbyteArr, jbyteArr, jint), sz, rb, gb, bb, map_type);
     update_panels(myviewer)
 end
 
+"""
+    set_colormap_no(no, elem= nothing, myviewer=get_viewer())
+
+sets the colormap number no for the element elem in myviewer. If elem is not given, the active element is used.
+
+# Arguments
+* no: the number of the colormap to set
+* elem: the element to apply this to. By default (or if nothing) the active element is used.
+* myviewer: the viewer to apply this to. By default the active viewer is used.
+
+"""
 function set_colormap_no(no, elem= nothing, myviewer=get_viewer())
     if isnothing(elem)
         elem=get_active_element(myviewer)
@@ -214,13 +226,14 @@ function set_colormap_no(no, elem= nothing, myviewer=get_viewer())
 end
 
 """
-    add_colormap(cmap_name="RdBu", myviewer=get_viewer(); N=255)
+    add_colormap(cmap_name="RdBu", myviewer=get_viewer(); N=255, map_type=0)
 adds a colormap ny name to the viewer.
 
 # Arguments:
 * cmap_name: a name that the function colormaps in the Colors package accepts. See https://juliagraphics.github.io/Colors.jl/stable/colormapsandcolorscales/ for possible names.
 * myviewer: the viewer to apply this to. By default the active viewer is used.
 * N: the number of colors in the colormap. Default is 255.
+* map_type: 0 for a normal colormap, 1 for a divergent colormap
 
 For unclear reasons the use-defined colormaps do not show up in the menu, but are accessible via "c".
 # Example:
@@ -229,9 +242,12 @@ julia> v = @vv 2 .*(rand(10,10,10).-0.5)
 julia> add_colormap("RdBu")
 ```
 """
-function add_colormap(cmap_name="RdBu", myviewer=get_viewer(); N=255)
+function add_colormap(cmap_name="RdBu", myviewer=get_viewer(); N=255, map_type=0)
     mymap = colormap(cmap_name, N);
-    add_colormap(mymap, myviewer)
+    if cmap_name == "RdBu"
+        map_type = 1; # this is divergent
+    end
+    add_colormap(mymap, myviewer; map_type=map_type)
     if cmap_name == "RdBu"
         set_min_max_thresh(-1.0, 1.0, myviewer)
         update_panels(myviewer)
@@ -1252,7 +1268,8 @@ function add_phase(data, data_element=0, data_time=0, viewer=nothing; name=nothi
             viewer = view5d(phases, viewer; gamma=1.0, mode=DisplAddElement, element=phase_elem, name=name)
             # all color updates need to only be done the first time
             set_element(-1, viewer) # go to the last element.
-            process_keys("cccccccccccc", viewer) # toggle color mode 12x to reach the cyclic colormap
+            # process_keys("cccccccccccc", viewer) # toggle color mode 12x to reach the cyclic colormap
+            set_colormap_no(12, get_num_elements(viewer)-1, viewer)
             process_keys("56", viewer) # for some reason this avoids dark pixels in the cyclic color display.
             process_keys("vVe", viewer) # Toggle from additive into multiplicative display    
             if sz[4]==1
