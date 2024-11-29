@@ -1,5 +1,8 @@
-# using Tar, Inflate, SHA
 # cd("C:\\Users\\pi96doc\\Documents\\Programming\\Java\\View5D")
+# using Pkg; Pkg.activate("."); using TestEnv; TestEnv.activate();
+# ]add Tar, Inflate, SHA
+# using Tar, Inflate, SHA
+
 # V = 2; VV = 5; VVV = 5; Suffix = "-SNAPSHOT";
 # include("src\\get_artifact_info.jl")
 # replace the code below with the printout
@@ -13,9 +16,9 @@
 # https://github.com/bionanoimaging/View5D/releases/download/View5D_v2.5.5/View5D_-2.5.5-SNAPSHOT-jar.tar.gz
 
 [View5D-jar]
-git-tree-sha1 = "006044302a745dec440b5de4165a6a9e7ee2ae4a"
+git-tree-sha1 = "f5cdfd2ee148e1a611dfb68c5943465443215ad7"
 lazy = true
 
     [[View5D-jar.download]]
     url = "https://github.com/bionanoimaging/View5D/releases/download/View5D_v2.5.5/View5D_-2.5.5-SNAPSHOT-jar.tar.gz"
-    sha256 = "7410ec419274e45cc2240811170e9c4c3c2b5a6fea988d9d4bf2352233079e6d"
+    sha256 = "9a1bc42f4a25c1b3799c236c63f467e764fd9c121a6bfd6059b4cb824db4ebf2"
