@@ -5,6 +5,8 @@
 [![codecov](https://codecov.io/gh/RainerHeintzmann/View5D.jl/branch/master/graph/badge.svg?token=2Ayxc30CAR)](https://codecov.io/gh/RainerHeintzmann/View5D.jl)
 [![CI](https://github.com/RainerHeintzmann/View5D.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/RainerHeintzmann/View5D.jl/actions/workflows/ci.yml)
 
+For information on using the [Java-based View5D](https://github.com/bionanoimaging/View5D) see the [Documentation](https://nanoimaging.de/View5D/) with Tutorials, a [Command Reference](https://nanoimaging.de/View5D/View5DCommandReference.html) and a [Cheat-Sheet](https://nanoimaging.de/View5D/CheatSheet.pdf).
+
 # Installation
 You can install the latest release via:
 ```julia
