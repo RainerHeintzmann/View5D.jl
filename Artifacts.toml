@@ -3,7 +3,7 @@
 # ]add Tar, Inflate, SHA
 # using Tar, Inflate, SHA
 
-# V = 2; VV = 5; VVV = 5; Suffix = "-SNAPSHOT";
+# V = 2; VV = 5; VVV = 5; Suffix = "-SNAPSHOT2";
 # include("src\\get_artifact_info.jl")
 # replace the code below with the printout
 #
@@ -16,9 +16,9 @@
 # https://github.com/bionanoimaging/View5D/releases/download/View5D_v2.5.5/View5D_-2.5.5-SNAPSHOT-jar.tar.gz
 
 [View5D-jar]
-git-tree-sha1 = "f5cdfd2ee148e1a611dfb68c5943465443215ad7"
+git-tree-sha1 = "03165924bebed3b19e96530c40bdda55852ac8b7"
 lazy = true
 
     [[View5D-jar.download]]
-    url = "https://github.com/bionanoimaging/View5D/releases/download/View5D_v2.5.5/View5D_-2.5.5-SNAPSHOT-jar.tar.gz"
-    sha256 = "9a1bc42f4a25c1b3799c236c63f467e764fd9c121a6bfd6059b4cb824db4ebf2"
+    url = "https://github.com/bionanoimaging/View5D/releases/download/View5D_v2.5.5/View5D_-2.5.5-SNAPSHOT2-jar.tar.gz"
+    sha256 = "7fb7b386c7731b9c4b9267468ecfe23945fe1b81141a72bc84dd7ae0eb966121"

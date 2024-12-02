@@ -37,7 +37,7 @@ this applies to keys sent to the viewer, which can be send to a choice of window
 # This is the proper way to do this via artifacts:
 rootpath = artifact"View5D-jar"
 # @show rootpath = "C:\\Users\\pi96doc\\Documents\\Programming\\Java\\View5D"
-const View5D_jar = joinpath(rootpath, "View5D_-2.5.5-SNAPSHOT.jar")
+const View5D_jar = joinpath(rootpath, "View5D_-2.5.5-SNAPSHOT2.jar")
 # my personal development version
 # const View5D_jar = joinpath(rootpath, "View5D_v2.jar")
 
@@ -1182,8 +1182,8 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
             viewer_sizes[viewer][4] = get_num_elements(viewer)  # to also account for user deletes
             viewer_sizes[viewer][5] = get_num_times(viewer)
             # viewer_sizes[myviewer] = viewer_sizes[viewer] # one would assume that the reference does not change but it does ...
-            set_element(-1) # go to the last element
-            process_keys("t",viewer)   
+            set_element(-1, viewer) # go to the last element
+            process_keys("t", viewer)   
             if !isnothing(name)
                 # E = get_num_elements()-1
                 set_element_name(e+e_offset, name, viewer)
@@ -1208,11 +1208,11 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
                             myJArr[t*size4d+1:end],sizeX, sizeY, sizeZ, sizeE, sizeT);
             viewer_sizes[viewer][5] = get_num_times(viewer)
             for e in 0: get_num_elements()-1 # just to normalize colors and set names
-                set_element(e) # go to the this element
+                set_element(e, viewer) # go to the this element
                 if !isnothing(name)
                     set_element_name(e, name, viewer)
                 end
-                process_keys("t",viewer)
+                process_keys("t", viewer)
             end
             if !isnothing(properties)
                 set_properties(properties, viewer, element=:, time=t)
