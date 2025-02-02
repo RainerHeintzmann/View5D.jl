@@ -1137,8 +1137,12 @@ function start_viewer(viewer, myJArr, jtype="jfloat", mode::DisplayMode = DisplN
                 process_keys("i", myviewer) 
         end
         if !isnothing(name)
-            for E in 0:get_num_elements(myviewer)-1
-                set_element_name(E, name, myviewer)
+            if (get_num_elements(myviewer) < 20) # only set names if there are not too many elements, as this can be really slow for large datasets
+                for E in 0:get_num_elements(myviewer)-1
+                    set_element_name(E, name, myviewer)
+                end
+            else
+                set_element_name(0, name, myviewer)
             end
             set_title(name, myviewer)
         else
