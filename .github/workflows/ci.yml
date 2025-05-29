@@ -21,7 +21,7 @@ jobs:
         version:
           - '1'
         os:
-          - ubuntu-latest
+          # - ubuntu-latest # Ubuntu test is difficult for Java due to the COPY_STACK issue on Linux and the X11 Display Variable.
           - windows-latest  # Add this line to include the latest Windows system
         arch:
           - x64
