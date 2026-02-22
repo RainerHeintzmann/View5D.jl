@@ -11,7 +11,7 @@ export get_viewer_history, close_all, hide_all, to_front_all
 export export_marker_lists, import_marker_lists, delete_all_marker_lists, export_markers_string, empty_marker_list
 export DisplayMode, DisplAddElement, DisplAddTime, DisplNew, DisplReplace
 export set_view5d_default_size, add_colormap
-export get_active_element, get_active_time, set_position, set_colormap_no
+export get_active_element, get_active_time, set_position, set_colormap_no, get_displayed_slice
 # export list_methods, java_memory
 # export init_layout, invalidate 
 
@@ -410,24 +410,129 @@ function get_num_elements(myviewer=nothing)
 end
 
 """
-    get_active_element(myviewer=get_viewer(myviewer))
+    get_active_element(myviewer=get_viewer(nothing))
 gets the currently active element number in the viewer
 
 # Arguments
 * `myviewer`: the viewer to apply this to. By default the active viewer is used.
 """
-function get_active_element(myviewer=get_viewer(myviewer))
+function get_active_element(myviewer=get_viewer(nothing))
     return jcall(myviewer, "get_active_element", jint, ());
 end
 
+const My3DData = @jimport view5d.My3DData
+const ASlice = @jimport view5d.ASlice
+
 """
-    get_active_time(myviewer=get_viewer(myviewer))
+    get_data(myviewer=get_viewer(nothing))
+ internal helper to return a reference to the data3d structure in java
+"""
+function get_data(myviewer=get_viewer(nothing))
+    return jcall(myviewer, "get_data", My3DData, ());
+end
+
+function get_data_size(myviewer=get_viewer(nothing))
+    return viewer_sizes[myviewer]
+end
+
+# function get_displayed_pixel(aslice::ASlice, px=0, py=0)
+#     return jcall(aslice, "GetIntValueAt", jint, (jint,jint),px,py);
+# end
+const ImgPanel = @jimport view5d.ImgPanel
+
+function get_current_position(myviewer=get_viewer(nothing))
+    mypan =  jfield(myviewer, "mypan", ImgPanel)
+    # println(listfields(mypan)) 
+    return jcall(mypan, "getPositions", Vector{jfloat},());
+    # float[] getPositions() 
+end
+
+"""
+    is_multicolormode(myviewer=get_viewer(nothing))
+
+returns a boolean indicating whether the viewer is currently in multicolor mode (toggle with "C").
+
+"""
+function is_multicolormode( myviewer=get_viewer(nothing))
+    d3d = get_data(myviewer)
+    # return jfield(d3d, "colormode", jboolean)
+    return Bool(jfield(d3d, "colormode", jboolean))
+end
+
+function set_multicolormode(do_overlay::Int=1, myviewer=get_viewer(nothing))
+    d3d = get_data(myviewer)
+    return jcall(d3d, "ToggleColor", Nothing, (jint,), do_overlay);
+end
+
+function intslice_to_rgb(intslice::Matrix{Int32})
+    return map(intslice) do pixel
+        RGB(
+            reinterpret(N0f8, UInt8((pixel >> 16) & 0xFF)),
+            reinterpret(N0f8, UInt8((pixel >> 8) & 0xFF)),
+            reinterpret(N0f8, UInt8(pixel & 0xFF))
+        )
+    end
+end
+
+"""
+    get_displayed_slice(dim=2, pos=nothing, myviewer=get_viewer(nothing))
+
+    exports the current mulitcolor display to Julia. 
+
+# Parameters:
++ `dim`: slicing dimension. 2 for XY, 1 for YZ and 0 for XZ.
++ `pos`: slicing position. By default (nothing) the current slicing position is used.
+
+# Example:
+```jldoctest
+julia> v = @vv reshape(1:16,4,4)
+julia> s = get_displayed_slice() # yields a warning and returns only (useless?) colormap indices.
+julia> process_keys("Cccccc") # to get it into overlay mode and select a particular palette
+julia> s = get_displayed_slice() # export the XY slice and converts it into an Matrix{RGB{N0f8}}
+```
+"""
+function get_displayed_slice(dim=2, pos=nothing, myviewer=get_viewer(nothing))
+    pos = isnothing(pos) ? round(Int,get_current_position(myviewer)[dim+1] - 0.5) : pos
+    # set_overlay_display(1, myviewer) # force overlay display, since colormapped integers are not yet implemented.
+
+    d = get_data(myviewer)
+    aslice = jcall(d, "getDisplayedSlice", ASlice, (jint,jint),dim,pos);
+    # return aslice
+    # println(listfields(aslice)) 
+    sz = get_data_size(myviewer)
+    slice_size = let 
+        if (dim == 0)
+            (sz[3],sz[2])
+        elseif (dim == 1)
+            (sz[1],sz[3])
+        elseif (dim == 2)
+            (sz[1],sz[2])
+        else
+            @error("slicing dim in get_displayed_slice has to be 0, 1 or 2")
+        end
+    end 
+    intslice = reshape(jfield(aslice, "mySlice", Vector{jint}), slice_size)
+    # if in RGB Overlay mode, this is an RGB image.
+    # else, this is an indexed colormap
+    # return intslice
+    if is_multicolormode(myviewer)
+        return transpose(intslice_to_rgb(intslice))
+    else
+        @warn "When exporting a displayed slice, please ensure that you are in multicolor overlay mode (C) and colors are appropriatedly displayed (v). Returning colormap indices instead."
+        return intslice
+    end
+    # GetIntValueAt(int x, int y)
+    # .mySlice
+end
+
+"""
+    get_active_time(myviewer=get_viewer(nothing))
 gets the currently active time number in the viewer
 
 # Arguments
 * `myviewer`: the viewer to apply this to. By default the active viewer is used.
 """
-function get_active_time(myviewer=get_viewer(myviewer))
+function get_active_time(myviewer=get_viewer(nothing))
     return jcall(myviewer, "get_active_time", jint, ());
 end
 
@@ -705,7 +810,13 @@ function import_marker_lists(marker_lists::Vector{T}, myviewer=nothing) where {T
         marker_lists = ml
     end
     if (length(marker_lists)>0 && length(marker_lists[1]) < 6)
-        @show "found list of positions"
+        # @show "found list of positions"
+        for m in marker_lists
+            if (any(m.<1))
+                @warn "Found zero location entry. For vectors to import all entries should be !== 0 (Julia-based indexing)."
+                break;
+            end
+        end
         marker_lists = [pos_marker(0, n-1, marker_lists[n] .- 1) for n in 1:lastindex(marker_lists)]
     end
     if eltype(marker_lists) != Float64
