@@ -18,6 +18,7 @@ julia> ] add https://github.com/RainerHeintzmann/View5D.jl
 ```
 `View5D.jl` uses `JavaCall.jl` which needs a working java installation on your system. If you do not already have one,
 you should install `OpenJDK` and you may have to set the `JAVA_HOME` variable to the installation directory on Windows.
+Under Linux and Mac, please ensure that the environment variables `JULIA_COPY_STACKS` and (as of Version 1.11) `JULIA_NUM_THREADS` are both set to `1` BEFORE starting Julia. Otherwise you may experience an error upon first time use of View5D and a seemingly random crash later.
 
 # Quick Overview
 
